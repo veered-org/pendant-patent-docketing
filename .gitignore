@@ -1,0 +1,6 @@
+config.php
+firm.php
+gmail/config.php
+gmail/token-cache.json
+data/*
+!data/.gitkeep
