@@ -2,7 +2,7 @@
 
 Part of [Veered](https://veered.org): free tools, shared as-is. Questions: support@veered.org
 
-![Pendant dashboard: overdue and upcoming deadlines, with Done and Cancel on each row](screenshot.png)
+![Pendant dashboard: overdue and upcoming deadlines, with Done and Cancel on each row](docs/screenshot.png)
 
 Docketing for a small patent and trademark practice. Pendant keeps every matter's deadlines, reads USPTO notices, proposes when a deadline has been met, and drafts the client emails and letters that go with each step. One PHP app with one SQLite file. It has no framework and no build step.
 
