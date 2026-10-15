@@ -293,7 +293,7 @@ foreach ([
      "I am pleased to report that the U.S. Trademark Office has accepted the Statement of Use filed for your {MARK_ID} trademark application. The mark will now register, and the registration certificate will issue in due course. I will send it to you when it arrives.\n\nA copy of the \"Notice of Acceptance\" is below my signature."],
 ] as [$type, $subj, $body]) run('INSERT OR IGNORE INTO templates(event_type,subject,body,needs_invoice,lead_days,internal_only) VALUES (?,?,?,0,?,0)', [$type, $subj, $body, '0']);
 // 2026-10-03: receipts (lib/held.php). "Plain old acceptance of something: save in file, email to report to client which will be in
-// Madder for me to verify." Seeded unapproved: approved once, and each email still waits for someone to click Send.
+// Pendant for me to verify." Seeded unapproved: approved once, and each email still waits for someone to click Send.
 foreach ([
   // 2026-10-03 (XYZ064 report): "your trademark renewal documents", no filing date, and his standard next-renewal paragraph with the dates.
   ['Report Filing Receipt', '{FILE}: {MARK_ID} - filing received by the U.S. Trademark Office',

@@ -102,7 +102,7 @@ function mf_rename(array $f, string $from, string $to): string {
     if ($f['mode'] === 'local') { if (!@rename($f['dir'] . '/' . $from, $f['dir'] . '/' . $to)) throw new RuntimeException("could not rename $from"); return $to; }
     $r = dbx_rpc('files/move_v2', ['from_path' => $f['dir'] . '/' . $from, 'to_path' => $f['dir'] . '/' . $to, 'autorename' => false]);
     if (!$r['ok']) throw new RuntimeException('Dropbox rename failed: ' . $r['error']);
-    // keep Madder's file index in step at once (2026-10-04: the index kept the old names until the hourly sync, so the send page offered files that no longer existed)
+    // keep Pendant's file index in step at once (2026-10-04: the index kept the old names until the hourly sync, so the send page offered files that no longer existed)
     dbx_index_entry(['.tag' => 'deleted', 'path_lower' => strtolower($f['dir'] . '/' . $from), 'path_display' => $f['dir'] . '/' . $from]);
     if (!empty($r['json']['metadata'])) dbx_index_entry($r['json']['metadata'] + ['.tag' => 'file']);
     return $to;

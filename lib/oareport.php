@@ -43,12 +43,12 @@ function oa_report_corr(array $ev): ?array {
         // an issue report queued by verify_issue_dates carries the ISSUE date as mail_date: the matter's latest Issue Notification is the paper
         ?: ((string)$ev['doc_code'] === 'ISSUE.NTF' ? q1('SELECT c.*, f.status fstatus, f.files ffiles, f.note fnote FROM correspondence c LEFT JOIN oa_files f ON f.correspondence_id=c.id WHERE c.matter_id=? AND c.doc_code="ISSUE.NTF" AND c.mail_date<=? ORDER BY c.mail_date DESC, c.id DESC LIMIT 1', [$ev['matter_id'], (string)$ev['mail_date']]) : null);
 }
-/** 2026-10-06 (XYZ008): one line for a paper Madder has not downloaded yet, with a link that asks for it now (same as the Fetch
+/** 2026-10-06 (XYZ008): one line for a paper Pendant has not downloaded yet, with a link that asks for it now (same as the Fetch
  *  button: the click starts bin/oa_fetch.php --wanted on the server). The link submits a small form of its own (button form="..."), so it also works inside
  *  the send form; print fetch_forms_html() once after that form closes. While the download runs, the line checks back every 15 seconds
  *  (?p=fetchstatus) and says when the paper is in the file or why it failed. */
 function fetch_now_html(?int $corrId, string $what, string $back, string $tag = 'p'): string {
-    if (!$corrId) return '<' . $tag . ' class="bad">Madder hasn\'t downloaded the ' . h($what) . ' yet.</' . $tag . '>';
+    if (!$corrId) return '<' . $tag . ' class="bad">Pendant hasn\'t downloaded the ' . h($what) . ' yet.</' . $tag . '>';
     $id = 'ffetch' . $corrId;
     $GLOBALS['fetch_forms'][$id] = '<form method="post" id="' . $id . '" style="display:none">' . csrf_field() . '<input type="hidden" name="action" value="oa_fetch_now"><input type="hidden" name="corr_id" value="' . $corrId . '"><input type="hidden" name="back" value="' . h($back) . '"></form>';
     [$cls, $inner, $poll] = fetch_now_state($corrId, $what);
@@ -58,18 +58,18 @@ function fetch_now_html(?int $corrId, string $what, string $back, string $tag = 
 function fetch_now_state(int $corrId, string $what): array {
     oa_files_schema(); $f = q1('SELECT status, note, files FROM oa_files WHERE correspondence_id=?', [$corrId]); $st = (string)($f['status'] ?? ''); $w = h($what);
     $again = ' <button type="submit" form="ffetch' . $corrId . '" class="linkbtn">Click here to try again.</button>';
-    if ($st === 'wanted') return ['muted', 'Madder is trying to download the file now. Will let you know when it\'s downloaded or if there\'s an error.', true];
+    if ($st === 'wanted') return ['muted', 'Pendant is trying to download the file now. Will let you know when it\'s downloaded or if there\'s an error.', true];
     if (in_array($st, ['saved', 'already'], true)) {
         $names = array_map('basename', array_filter((array)(json_decode((string)$f['files'], true) ?: []), 'is_string'));
         $ref = (string)(q1('SELECT m.ref FROM correspondence c JOIN matters m ON m.id=c.matter_id WHERE c.id=?', [$corrId])['ref'] ?? '');
         $here = []; try { $here = $ref !== '' && function_exists('matter_files') ? array_column(matter_files($ref), 'name') : []; } catch (Throwable $e) {}
         $arrived = $names ? array_values(array_intersect($names, $here)) : $here;
         if ($names && $arrived) return ['ok', 'Downloaded: ' . h(implode('; ', $arrived)) . '. <a href="" onclick="location.reload();return false">Reload the page</a> to attach it.', false];
-        return ['muted', 'Downloaded' . ($names ? ': ' . h(implode('; ', $names)) : '') . '. Waiting for it to reach Madder (within 10 minutes).', true];
+        return ['muted', 'Downloaded' . ($names ? ': ' . h(implode('; ', $names)) : '') . '. Waiting for it to reach Pendant (within 10 minutes).', true];
     }
     if ($st === 'manual') return ['bad', 'The ' . $w . ' could not be downloaded: the application is unpublished, so only Patent Center has it. Use Download with Claude.', false];
     if (in_array($st, ['failed', 'retry'], true)) return ['bad', 'The ' . $w . ' could not be downloaded: ' . h(fetch_error_text((string)$f['note'])) . $again, false];
-    return ['bad', 'Madder hasn\'t downloaded the ' . $w . ' yet. <button type="submit" form="ffetch' . $corrId . '" class="linkbtn">Click here to get it now.</button>', false];
+    return ['bad', 'Pendant hasn\'t downloaded the ' . $w . ' yet. <button type="submit" form="ffetch' . $corrId . '" class="linkbtn">Click here to get it now.</button>', false];
 }
 /** The download job's note, in plain words. */
 function fetch_error_text(string $note): string {
@@ -79,7 +79,7 @@ function fetch_error_text(string $note): string {
     if ($code === 403 || $code === 401) return 'the USPTO site refused the download.';
     if ($code >= 500) return 'the USPTO site had a server error (HTTP ' . $code . '); it is usually back within the hour.';
     if ($code === 0 && preg_match('/HTTP 0\b/', $n)) return 'the USPTO site could not be reached.';
-    if (preg_match('/does not list/i', $n)) return 'the USPTO has not posted it yet. Madder checks again every hour.';
+    if (preg_match('/does not list/i', $n)) return 'the USPTO has not posted it yet. Pendant checks again every hour.';
     if (preg_match('/Gmail not reachable/i', $n)) return 'Gmail could not be reached to get the attachment.';
     if (preg_match('/could not write/i', $n)) return 'the file could not be saved into the Dropbox folder.';
     return $n !== '' ? $n : 'no reason was recorded.';
@@ -233,7 +233,7 @@ function queue_notice_todo(array $m, string $code, string $date, string $how = '
 function queue_issue_todo(array $m, string $date, string $how = ''): ?int {
     if (q1('SELECT 1 FROM events WHERE matter_id=? AND type IN (?,?) AND status<>"cancelled"', [$m['id'], NOTICE_ISSUE_TYPES[0], NOTICE_ISSUE_TYPES[1]])) return null;
     run('INSERT INTO events(matter_id,type,due_date,status,source,doc_code,mail_date,note) VALUES (?,?,?,"open","rule","ISSUE.NTF",?,?)',
-        [$m['id'], is_design_matter($m) ? NOTICE_ISSUE_TYPES[1] : NOTICE_ISSUE_TYPES[0], $date, $date, 'USPTO Issue Notification mailed ' . fmt_date($date) . ': save it; the client email is offered once Madder has read the patent number and issue date off it' . ($how !== '' ? ' (' . $how . ')' : '')]);
+        [$m['id'], is_design_matter($m) ? NOTICE_ISSUE_TYPES[1] : NOTICE_ISSUE_TYPES[0], $date, $date, 'USPTO Issue Notification mailed ' . fmt_date($date) . ': save it; the client email is offered once Pendant has read the patent number and issue date off it' . ($how !== '' ? ' (' . $how . ')' : '')]);
     $id = (int)db()->lastInsertId(); audit('issue_report', ($m['ref'] ?? '') . ' Issue Notification of ' . fmt_date($date) . ': report to-do queued (waits for the PDF)', (int)$m['id']);
     return $id;
 }
@@ -255,7 +255,7 @@ function notice_todo_waiting(array $ev): bool { return in_array((string)$ev['typ
 function notice_todo_actions(array $ev, string $back): string {
     $o = oa_report_state_html($ev, $back); $c = oa_report_corr($ev); $st = (string)($c['fstatus'] ?? '');
     if (is_notice_todo((string)$ev['type']) && oa_report_ready($ev)) return $o . (auth_email() !== '' ? ' <a class="btn small gold" href="' . url('send', ['id' => $ev['id'], 'report' => 'oa', 'back' => $back]) . '">Send to client</a>' : '');
-    if (!is_notice_todo((string)$ev['type']) && oa_report_ready($ev)) return $o . ' <span class="muted">Madder reads the patent number and issue date off it within the hour; the client email is offered then</span>';
+    if (!is_notice_todo((string)$ev['type']) && oa_report_ready($ev)) return $o . ' <span class="muted">Pendant reads the patent number and issue date off it within the hour; the client email is offered then</span>';
     if ($c && in_array($st, ['', 'retry', 'failed'], true)) $o .= ' ' . btn('oa_fetch_now', ['corr_id' => $c['id'], 'back' => $back], 'Fetch', 'small gold');
     return $o;
 }

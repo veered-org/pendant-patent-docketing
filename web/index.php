@@ -3,7 +3,7 @@ declare(strict_types=1);
 // Local sample serves web/ (config one level up); on the server index.php sits beside config.php.
 define('DOCKET_ROOT', is_file(__DIR__ . '/config.php') ? __DIR__ : dirname(__DIR__));
 $GLOBALS['cfg'] = $cfg = require DOCKET_ROOT . '/config.php';
-// Origin gate (2026-10-01): Madder answers only connections from the USA and Israel. REMOTE_ADDR only (no trusted proxy);
+// Origin gate (2026-10-01): Pendant answers only connections from the USA and Israel. REMOTE_ADDR only (no trusted proxy);
 // pinned addresses (geo_always_allow) always get in. Runs before the session, the database or any input.
 require DOCKET_ROOT . '/lib/geo.php';
 $geo = geo_check($_SERVER['REMOTE_ADDR'] ?? null, $cfg);
@@ -11,7 +11,7 @@ if (!$geo['allow']) {
     @file_put_contents(DOCKET_ROOT . '/data/geo-deny.log', gmdate('c') . ' ' . ($_SERVER['REMOTE_ADDR'] ?? '-') . ' ' . $geo['reason'] . "\n", FILE_APPEND | LOCK_EX);
     http_response_code(403); header('Content-Type: text/plain; charset=utf-8'); exit("403 Forbidden\n");
 }
-foreach (['db', 'auth', 'dates', 'rules', 'mail', 'reminders', 'render', 'uspto', 'gmail_pull', 'held', 'send', 'oafetch', 'feepaid', 'noa', 'sendcheck', 'learn', 'phones', 'dropbox', 'folders', 'receipts', 'issuedates', 'issuance', 'filing', 'annuities', 'clientreport', 'pcfetch', 'docxpdf', 'tmdocket', 'signreq', 'ptcard', 'govfees', 'waiting', 'prepfiling'] as $f) require DOCKET_ROOT . "/lib/$f.php";
+foreach (['db', 'auth', 'dates', 'rules', 'mail', 'reminders', 'render', 'uspto', 'gmail_pull', 'held', 'send', 'oafetch', 'feepaid', 'noa', 'sendcheck', 'learn', 'phones', 'dropbox', 'folders', 'receipts', 'issuedates', 'issuance', 'filing', 'annuities', 'clientreport', 'pcfetch', 'docxpdf', 'tmdocket', 'signreq', 'ptcard', 'govfees', 'waiting', 'prepfiling', 'dbxfill'] as $f) require DOCKET_ROOT . "/lib/$f.php";
 if (($_GET['p'] ?? '') === 'pc_req') pc_serve_request((string)($_GET['t'] ?? ''));   // the "Download with Claude" launcher fetches its request by one-time token (no session; lib/pcfetch.php)
 auth_start();
 auth_sso($cfg);
@@ -25,7 +25,7 @@ $p = $_GET['p'] ?? 'dash';
 
 // ------------------------------------------------------------------ login
 // This is the ONLY sign-in page (2026-10-01): Mail and Locations send a signed-out visitor here with ?next=mail|locations
-// and get them back after the sign-in; mail_signin() gives the attorney and staff the Mail session, the paralegal stays Madder-only.
+// and get them back after the sign-in; mail_signin() gives the attorney and staff the Mail session, the paralegal stays Pendant-only.
 $next = in_array($_REQUEST['next'] ?? '', ['mail', 'locations'], true) ? $_REQUEST['next'] : '';
 $go = function () use ($cfg, $next): string {
     if ($next === '') return '?';
@@ -41,10 +41,10 @@ if (!auth_user()) {
         elseif (auth_attempt($cfg, $_POST['user'] ?? '', $_POST['pass'] ?? '')) { login_clear(); audit('login'); header('Location: ' . $go()); exit; }
         else { login_fail($who); audit('login_failed', 'username tried: ' . $who . ' from ' . login_ip()); $left = login_tries_left(); $err = 'Wrong username or password. The username is your first name (michael, joshua or christine) or your email address.' . ($left <= 2 ? ' ' . ($left > 0 ? $left . ' more tr' . ($left === 1 ? 'y' : 'ies') . ' before a ' . (int)(LOGIN_WINDOW / 60) . '-minute pause.' : 'Sign-in from this connection is now paused for ' . (int)(LOGIN_WINDOW / 60) . ' minutes.') : ''); }
     }
-    echo '<!doctype html><html><head><meta charset="utf-8"><title>Madder · ' . htmlspecialchars(firm('name')) . '</title><link rel="icon" type="image/png" href="madder-icon.png"><link rel="apple-touch-icon" href="madder-icon.png"><style>' . file_get_contents(DOCKET_ROOT . '/lib/style.css') . '</style></head><body><main><div class="login box"><img class="login-madder" src="madder.jpg" alt=""><h1 style="text-align:center"><span style="color:var(--gold)">' . htmlspecialchars(firm('initials')) . '</span> Madder</h1>';
+    echo '<!doctype html><html><head><meta charset="utf-8"><title>Pendant · ' . htmlspecialchars(firm('name')) . '</title><link rel="icon" type="image/png" href="pendant-icon.png"><link rel="apple-touch-icon" href="pendant-icon.png"><style>' . file_get_contents(DOCKET_ROOT . '/lib/style.css') . '</style></head><body><main><div class="login box"><img class="login-pendant" src="pendant.jpg" alt=""><h1 style="text-align:center"><span style="color:var(--gold)">' . htmlspecialchars(firm('initials')) . '</span> Pendant</h1>';
     if ($err) echo '<p class="bad">' . h($err) . '</p>';
     echo '<form method="post"><input type="hidden" name="action" value="login">' . ($next ? '<input type="hidden" name="next" value="' . h($next) . '">' : '') . '<input type="text" name="user" placeholder="username" autofocus><input type="password" name="pass" placeholder="password"><button>Sign in</button></form>';
-    if (!empty($cfg['mail_users'])) echo '<p class="muted">One sign-in for Madder, Mail and Locations.</p>';   // only where the Mail-lookup app shares the login
+    if (!empty($cfg['mail_users'])) echo '<p class="muted">One sign-in for Pendant, Mail and Locations.</p>';   // only where the Mail-lookup app shares the login
     echo '</div></main></body></html>';
     exit;
 }
@@ -143,6 +143,7 @@ function handle_action(array $cfg): void {
             if ($code === '') redirect($back, 'File number must be three letters and three digits, e.g. XYZ001.');
             if (!in_array($kind, ['patent', 'trademark', 'copyright', 'general'], true)) redirect($back, 'Pick a kind.');
             if (($_POST['filing_date'] ?? '') !== '' && !is_iso_date($_POST['filing_date'])) redirect($back, 'Bad filing date.');
+            if (($_POST['grant_date'] ?? '') !== '' && !is_iso_date($_POST['grant_date'])) redirect($back, 'Bad registration / issue date.');
             if (q1('SELECT 1 FROM matters WHERE ref=? AND kind=?', [$ref, $_POST['kind']])) redirect($back, "$ref already exists.");
             $isNew = !q1('SELECT 1 FROM clients WHERE code=?', [$code]);
             run('INSERT OR IGNORE INTO clients(code) VALUES (?)', [$code]);
@@ -150,6 +151,8 @@ function handle_action(array $cfg): void {
             if (trim($_POST['client_email'] ?? '') !== '') run('UPDATE clients SET email=CASE WHEN email="" THEN ? ELSE email END WHERE code=?', [trim($_POST['client_email']), $code]);
             run('INSERT INTO matters(kind,ref,client_code,title,country,app_no,filing_date,notes) VALUES (?,?,?,?,?,?,?,?)', [$_POST['kind'], $ref, $code, trim($_POST['title'] ?? ''), trim($_POST['country'] ?? 'United States') ?: 'United States', preg_replace('/\D/', '', $_POST['app_no'] ?? ''), $_POST['filing_date'] ?: null, 'Added by ' . auth_user() . ' ' . date('Y-m-d')]);
             $mid = (int)db()->lastInsertId(); audit('add_matter', "$ref " . ($isNew ? "(new client $code)" : ''), $mid);
+            if (trim($_POST['reg_no'] ?? '') !== '' || ($_POST['grant_date'] ?? '') !== '') run('UPDATE matters SET reg_no=?, grant_date=? WHERE id=?', [strtoupper(trim(preg_replace('/^\s*US\s*/i', '', (string)($_POST['reg_no'] ?? '')))), ($_POST['grant_date'] ?? '') ?: null, $mid]);
+            ca_docket_now($mid);   // 2026-10-15: Canadian maintenance fees / renewals right away
             if ($_POST['kind'] === 'patent' && ($_POST['app_type'] ?? '') === 'provisional') run('UPDATE matters SET app_type="Provisional" WHERE id=?', [$mid]);
             if ($_POST['kind'] === 'patent') ensure_priority_deadline($mid, true);   // entered by hand, as before
             $tsd = $_POST['kind'] === 'trademark' ? tm_docket_from_tsdr($mid) : '';   // 2026-10-05 (ORI001): the open deadlines from the USPTO record
@@ -310,7 +313,7 @@ function handle_action(array $cfg): void {
                 } else { audit('learn_tpl_failed', $lt['event_type'] . ' edits from ' . $m['ref'] . ' could not be mapped onto the template', (int)$m['id']); $closed .= ' Template "' . $lt['event_type'] . '" NOT changed or approved: your edits touch client-specific text (e.g. the goods list) and could not be turned back into template wording. Edit it on the Templates page.'; }
             }
             if ($mode === 'draft') redirect(url('reminders', ['st' => 'all']), 'Held in drafts for ' . $to . (count($att) ? ' with ' . count($att) . ' attachment(s)' : '') . '. Open it under Drafts to add the invoice and send.');
-            if ($tx === null) redirect($back, 'Recorded for ' . $to . ' but NOT transmitted: this copy of Madder is in outbox mode.' . $closed);
+            if ($tx === null) redirect($back, 'Recorded for ' . $to . ' but NOT transmitted: this copy of Pendant is in outbox mode.' . $closed);
             redirect($back, $tx['ok'] ? 'Transmitted to ' . $to . ' as ' . auth_email() . (auth_cc() ? ' (cc ' . auth_cc() . ')' : '') . '. A copy is in your own mailbox.' . $closed : 'NOT transmitted: ' . $tx['error'] . '. It is kept under Reminders → Sent by hand for a retry.' . (!empty($_POST['feepaid']) ? ' The fee events were left open.' : ''));
         case 'transmit': if (!is_admin() && (q1('SELECT from_user FROM outbox WHERE id=?', [$id])['from_user'] ?? '') !== auth_user()) redirect($back, 'Not yours to transmit.'); $tx = transmit_outbox($id); redirect($back, $tx['ok'] ? 'Transmitted.' : 'NOT transmitted: ' . $tx['error']);
         case 'discard_outbox': if (!is_admin()) redirect($back, 'Admin only.'); run('UPDATE outbox SET mode="discarded" WHERE id=? AND transmitted_at IS NULL', [$id]); audit('outbox_discarded', "outbox $id"); redirect($back, 'Discarded; it will never be transmitted.');
@@ -400,7 +403,7 @@ function handle_action(array $cfg): void {
             $mid = (int)($_POST['matter_id'] ?? 0); $type = trim((string)(($_POST['type_other'] ?? '') ?: ($_POST['type'] ?? ''))); $d = (string)($_POST['due'] ?? '');
             if ($type === '' || !is_iso_date($d)) redirect($back, 'Need an event type and a date.');
             if (!($am = q1('SELECT * FROM matters WHERE id=?', [$mid]))) redirect($back, 'No such matter.');
-            if (preg_match('/^Remind Client$/i', $type) && is_pending_us_tm_app($am)) redirect($back, 'Not added: "Remind Client" is no longer docketed on pending trademark applications. Madder\'s own 30-day and 7-day reminders cover the deadline itself.');
+            if (preg_match('/^Remind Client$/i', $type) && is_pending_us_tm_app($am)) redirect($back, 'Not added: "Remind Client" is no longer docketed on pending trademark applications. Pendant\'s own 30-day and 7-day reminders cover the deadline itself.');
             run('INSERT INTO events(matter_id,type,due_date,status,source,note) VALUES (?,?,?,"open","manual",?)', [$mid, $type, $d, trim($_POST['note'] ?? '') . ' (added by ' . auth_user() . ')']); audit('add_event', "$type $d added", $mid); redirect($back, 'Event added.');
         case 'set_client':   // one Save for the whole Client box (2026-09-30): a changed client code moves the matter (next case); otherwise save the details
             $mm0 = !empty($_POST['matter_id']) ? q1('SELECT client_code FROM matters WHERE id=?', [(int)$_POST['matter_id']]) : null;
@@ -465,7 +468,16 @@ function handle_action(array $cfg): void {
         case 'matter_note':
             foreach (['filing_date', 'grant_date'] as $k) if (($_POST[$k] ?? '') !== '' && !is_iso_date($_POST[$k] ?? '')) redirect($back, 'Bad date.');
             run('UPDATE matters SET notes=?, filing_date=NULLIF(?, ""), grant_date=NULLIF(?, "") WHERE id=?', [trim((string)($_POST['notes'] ?? '')), $_POST['filing_date'] ?? '', $_POST['grant_date'] ?? '', (int)$_POST['matter_id']]);
-            $added = ensure_priority_deadline((int)$_POST['matter_id']); redirect($back, 'Saved.' . ($added ? " Added: $added." : ''));
+            $added = ensure_priority_deadline((int)$_POST['matter_id']); $added .= ca_docket_now((int)$_POST['matter_id']); redirect($back, 'Saved.' . ($added ? " Added: $added." : ''));
+        case 'dbx_fill_apply':   // 2026-10-15: the matter's data from its Dropbox folder (lib/dbxfill.php), the ticked rows only
+            $mid = (int)($_POST['matter_id'] ?? 0); $m = q1('SELECT * FROM matters WHERE id=?', [$mid]); if (!$m) redirect($back, 'No such matter.');
+            $ch = [];
+            foreach (['title', 'app_no', 'filing_date', 'reg_no', 'grant_date'] as $k) { if (empty($_POST['use_' . $k])) continue; $v = trim((string)($_POST['v_' . $k] ?? ''));
+                if (in_array($k, ['filing_date', 'grant_date'], true) && !is_iso_date($v)) continue;
+                run("UPDATE matters SET $k=?, updated_at=datetime('now') WHERE id=?", [$v, $mid]); $ch[] = (DBXF_FIELDS[$k] ?? $k) . ' ' . $v; }
+            if (!$ch) redirect($back, 'Nothing ticked; nothing changed.');
+            audit('dbx_fill', $m['ref'] . ' from Dropbox: ' . implode('; ', $ch), $mid); $added = ca_docket_now($mid);
+            redirect(url('matter', ['id' => $mid]), 'Updated from Dropbox: ' . implode('; ', $ch) . '.' . ($added !== '' ? ' Added:' . $added . '.' : ''));
         case 'approve_tpl': if (!can_approve_tpl()) redirect($back, 'Only the attorney or staff can approve templates.'); run('UPDATE templates SET approved=1, approved_by=?, approved_at=datetime("now") WHERE event_type=?', [auth_user(), $_POST['type']]); $rel = release_held('e.type=?', [$_POST['type']]); audit('approve_tpl', $_POST['type'] . " ($rel held reminders released)"); redirect($back, 'Template approved.' . ($rel ? " $rel held reminder(s) moved to the pending queue." : '') . ' New reminders of this type queue from the next nightly run.');
         case 'unapprove_tpl': if (!can_approve_tpl()) redirect($back, 'Only the attorney or staff can approve templates.'); run('UPDATE templates SET approved=0 WHERE event_type=?', [$_POST['type']]); audit('unapprove_tpl', $_POST['type']); redirect($back, 'Template approval withdrawn.');
         case 'save_tpl':   // 2026-09-28: staff edit templates too; approval stays his (a save un-approves)
@@ -496,10 +508,10 @@ function handle_action(array $cfg): void {
             run('UPDATE events SET status="cancelled", done_by=?, done_at=datetime("now"), note=note_add(note, ?) WHERE id=?', [auth_user(), 'cancelled: sent by hand (' . (auth_name() ?: auth_user()) . ' ' . date('Y-m-d') . ')', $id]);
             run('UPDATE reminders SET status="skipped", reason=? WHERE event_id=? AND status IN ("pending","held")', ['sent by hand, per ' . auth_user(), $id]);
             audit('cancel', $re['type'] . ' cancelled: the client was emailed by hand', (int)$re['matter_id']);
-            redirect($back, $re['ref'] . ': cancelled. Madder will not send this email.');
-        case 'pub_reported':   // publication report sent outside Madder (Dashboard > publication reports)
+            redirect($back, $re['ref'] . ': cancelled. Pendant will not send this email.');
+        case 'pub_reported':   // publication report sent outside Pendant (Dashboard > publication reports)
             $e = q1('SELECT e.*, m.ref FROM events e JOIN matters m ON m.id=e.matter_id WHERE e.id=? AND e.type=? AND e.status="open"', [(int)($_POST['id'] ?? 0), PUB_REPORT]); if (!$e) redirect($back, 'That report is no longer open.');
-            run('UPDATE events SET status="done", done_by=?, done_at=datetime("now"), note=note_add(note, ?) WHERE id=?', [auth_user(), 'Marked reported outside Madder by ' . auth_user() . ' ' . fmt_date(today()), $e['id']]);
+            run('UPDATE events SET status="done", done_by=?, done_at=datetime("now"), note=note_add(note, ?) WHERE id=?', [auth_user(), 'Marked reported outside Pendant by ' . auth_user() . ' ' . fmt_date(today()), $e['id']]);
             audit('notice_report', $e['ref'] . ' publication report marked as already sent', (int)$e['matter_id']); redirect($back, $e['ref'] . ': marked reported.');
         case 'pub_queue':
             $m = q1('SELECT * FROM matters WHERE id=?', [(int)($_POST['matter_id'] ?? 0)]); $c = q1('SELECT * FROM correspondence WHERE id=? AND doc_code="NOTICE OF PUBLICATION"', [(int)($_POST['cid'] ?? 0)]);
@@ -507,9 +519,9 @@ function handle_action(array $cfg): void {
             redirect($back, pub_queue_for($m, $c) ? $m['ref'] . ': client email queued.' : $m['ref'] . ': not queued (inactive, not a US trademark, or already reported within 60 days).');
         case 'pub_sweep':
             $l = pub_sweep(true); redirect($back, $l ? implode(' · ', array_slice($l, 0, 8)) . (count($l) > 8 ? ' (+' . (count($l) - 8) . ' more)' : '') : 'Checked: nothing new, no reports found sent by hand.');
-        case 'reg_reported':   // registration report sent outside Madder (Dashboard > registration reports, lib/regreport.php)
+        case 'reg_reported':   // registration report sent outside Pendant (Dashboard > registration reports, lib/regreport.php)
             $e = q1('SELECT e.*, m.ref FROM events e JOIN matters m ON m.id=e.matter_id WHERE e.id=? AND e.type IN (?,?) AND e.status="open"', [(int)($_POST['id'] ?? 0), REG_REPORT, ISSUANCE_REPORT_EVENT]); if (!$e) redirect($back, 'That report is no longer open.');   // + patent issuance (lib/patreport.php)
-            run('UPDATE events SET status="done", done_by=?, done_at=datetime("now"), note=note_add(note, ?) WHERE id=?', [auth_user(), 'Marked reported outside Madder by ' . auth_user() . ' ' . fmt_date(today()), $e['id']]);
+            run('UPDATE events SET status="done", done_by=?, done_at=datetime("now"), note=note_add(note, ?) WHERE id=?', [auth_user(), 'Marked reported outside Pendant by ' . auth_user() . ' ' . fmt_date(today()), $e['id']]);
             audit('notice_report', $e['ref'] . ' registration report marked as already sent', (int)$e['matter_id']); redirect($back, $e['ref'] . ': marked reported.');
         case 'reg_queue':
             $m = q1('SELECT * FROM matters WHERE id=? AND kind="trademark"', [(int)($_POST['matter_id'] ?? 0)]); if (!$m) redirect($back, 'No such matter.');
@@ -530,8 +542,8 @@ function handle_action(array $cfg): void {
             // If the host refuses to start it, the hourly oa_fetch still picks up status "wanted".
             $mref = (string)(q1('SELECT ref FROM matters WHERE id=?', [(int)$c['matter_id']])['ref'] ?? '');
             if ($mref !== '' && function_exists('exec')) @exec('(cd ' . escapeshellarg(DOCKET_ROOT) . ' && HOME=${HOME:-' . (function_exists('posix_getpwuid') ? (posix_getpwuid(posix_geteuid())['dir'] ?? '/tmp') : '/tmp') . '} nohup ' . (is_file('/usr/local/bin/php') ? '/usr/local/bin/php' : 'php') . ' bin/oa_fetch.php --wanted --days=3650 --only=' . escapeshellarg($mref) . ' >> data/fetch-now.log 2>&1) > /dev/null 2>&1 &');
-            redirect($back, 'Madder is trying to download the file now.');
-        case 'pc_request':   // "Download with Claude" (lib/pcfetch.php; 2026-10-03): plan folder + file names, then open the madder-pc: launcher page
+            redirect($back, 'Pendant is trying to download the file now.');
+        case 'pc_request':   // "Download with Claude" (lib/pcfetch.php; 2026-10-03): plan folder + file names, then open the pendant-pc: launcher page
             if (!pc_can_run()) redirect($back, 'Only the attorney or staff can start the Patent Center downloads.');
             $cids = ($_POST['corr_id'] ?? '') === 'all' ? array_column(pc_waiting(), 'id') : [(int)($_POST['corr_id'] ?? 0)];
             $rids = pc_plan($cids, (string)auth_user());
@@ -573,7 +585,7 @@ function held_section_html(): string {
     if ($done) { echo '<details><summary class="muted">Recently handled (' . count($done) . ')</summary><table><tbody>'; foreach ($done as $x) echo '<tr><td class="nowrap">' . h($x['received']) . '</td><td>' . h(trunc($x['subject'], 80)) . '</td><td class="note">' . h($x['handled_by'] . ' ' . et((string)$x['handled_at']) . ($x['note'] !== '' ? ': ' . $x['note'] : '')) . '</td><td>' . btn('held_reopen', ['msg' => $x['msg_id']], 'Hold again', 'small ghost') . '</td></tr>'; echo '</tbody></table></details>'; }
     return (string)ob_get_clean();
 }
-/** The Dashboard's row of cards (counts by due range, receipts, Patent Center, unsent, verify, emails, blocked, the Madder emblem).
+/** The Dashboard's row of cards (counts by due range, receipts, Patent Center, unsent, verify, emails, blocked, the Pendant emblem).
  *  2026-10-03: it stays at the top of every page a card opens. Returns [html, ranges, byRange, show, unsent]. */
 function dash_cards(string $EVSQL, string $page = 'dash'): array {
     $t = today(); $show = $page === 'dash' ? ($_GET['show'] ?? '') : '';
@@ -606,7 +618,7 @@ function dash_cards(string $EVSQL, string $page = 'dash'): array {
     // 2026-10-01: an email that failed to go out is shown until it is transmitted (or discarded), so it cannot sit unnoticed.
     $unsent = untransmitted(); if ($unsent) echo '<a class="card over' . (($_GET['show'] ?? '') === 'unsent' ? ' on' : '') . '" href="' . url('dash', ['show' => 'unsent']) . '"><b>' . count($unsent) . '</b><span>emails NOT sent</span></a>';
     // 2026-10-15: client emails to send and blocked reminders share one card (same list behind both)
-    echo '<a class="card' . ($pend ? ' d3' : '') . '" href="' . url('reminders') . '"><b>' . ($pend - $nh) . '</b><span>client email' . ($pend - $nh === 1 ? '' : 's') . ' to send' . ($nh ? ' · <b>' . $nh . '</b> USPTO email' . ($nh > 1 ? 's' : '') . ' to read' : '') . ($held ? ' · <b>' . $held . '</b> reminder' . ((int)$held === 1 ? '' : 's') . ' blocked: ' . h(implode(', ', array_unique(array_map(fn($x) => blocked_why((string)$x['reason']), q('SELECT reason FROM reminders WHERE status="held"'))))) : '') . '</span></a><div class="card madder"><img src="madder.jpg" alt="' . h(firm('initials')) . ' Madder"></div></div>';   // 2026-10-01: the emblem replaces the DocketTrak-mirror card (mirror queue removed from the UI 2026-10-09)
+    echo '<a class="card' . ($pend ? ' d3' : '') . '" href="' . url('reminders') . '"><b>' . ($pend - $nh) . '</b><span>client email' . ($pend - $nh === 1 ? '' : 's') . ' to send' . ($nh ? ' · <b>' . $nh . '</b> USPTO email' . ($nh > 1 ? 's' : '') . ' to read' : '') . ($held ? ' · <b>' . $held . '</b> reminder' . ((int)$held === 1 ? '' : 's') . ' blocked: ' . h(implode(', ', array_unique(array_map(fn($x) => blocked_why((string)$x['reason']), q('SELECT reason FROM reminders WHERE status="held"'))))) : '') . '</span></a><div class="card pendant"><img src="pendant.jpg" alt="' . h(firm('initials')) . ' Pendant"></div></div>';   // 2026-10-01: the emblem replaces the DocketTrak-mirror card (mirror queue removed from the UI 2026-10-09)
     $o .= (string)ob_get_clean();
     if ($page !== 'dash') { $o = preg_replace('/ class="card ([a-z0-9]+) on"/', ' class="card $1"', $o); $hrefs = ['queue' => 'p=queue', 'reminders' => 'p=reminders'];
         if (isset($hrefs[$page])) $o = preg_replace_callback('/<a class="card([^"]*)" href="([^"]*' . preg_quote($hrefs[$page], '/') . '[^"]*)"/', fn($m) => '<a class="card' . $m[1] . ' on" href="' . $m[2] . '"', $o); }
@@ -693,7 +705,7 @@ case 'matter': {
        . '<div class="bar" style="margin-top:10px"><label>Filing date <input type="date" name="filing_date" form="noteform" value="' . h($m['filing_date']) . '"></label><label>Grant / reg. date <input type="date" name="grant_date" form="noteform" value="' . h($m['grant_date']) . '"></label>'
        . '</div>';
     if ($m['dead']) echo '<p class="bad" style="margin:0 0 8px"><b>Inactive.</b> ' . h($m['dead_reason'] ?: $m['pto_status']) . ($m['dead_at'] ? ' (' . fmt_date($m['dead_at']) . ')' : '') . '. No further USPTO checks or client reminders.' . ($left ? ' ' . $left . ' event(s) still open. ' . (is_admin() ? btn('confirm_dead', ['matter_id' => $m['id'], 'back' => $here], 'Done: close all ' . $left, 'small gold') : '<span class="muted">awaiting an admin</span>') : '') . '</p>';
-    echo '<textarea name="notes" form="noteform" style="min-height:60px" placeholder="matter notes">' . h($m['notes']) . '</textarea><br><button class="small ghost" form="noteform">Save</button></div>';
+    echo '<textarea name="notes" form="noteform" style="min-height:60px" placeholder="matter notes">' . h($m['notes']) . '</textarea><br><button class="small ghost" form="noteform">Save</button> <a class="btn small ghost" href="' . h(url('dbxfill', ['id' => $m['id']])) . '">Fill from Dropbox</a></div>';
     // Every address known for this client (main, lists, imported / seen on its mail): click one to add it to the address field last clicked (2026-09-30).
     $knownA = split_addresses(implode(';', [$c['email'] ?? '', $c['email_tm'] ?? '', $c['email_patent'] ?? '', $c['email_ap'] ?? '', $c['alt_emails'] ?? '']));
     $known = $knownA ? '<div class="bar" style="margin-top:8px"><span class="muted">Known addresses (click to add to the field you last clicked):</span>' . implode('', array_map(fn($a) => '<button type="button" class="small ghost addr-pick">' . h($a) . '</button>', $knownA)) . '</div>' : '';
@@ -816,7 +828,7 @@ case 'send': {
     // The client email is the issuance report, created on the issue day by run_issuance() with the eGrant + letter.
     if ($ev['type'] === 'Expected Issue Date') {
         if ($ir = q1("SELECT id FROM events WHERE matter_id=? AND type=? AND status IN ('open','proposed') ORDER BY id DESC LIMIT 1", [$ev['matter_id'], ISSUANCE_REPORT_EVENT])) redirect(url('send', ['id' => $ir['id'], 'back' => $_GET['back'] ?? '']), 'Opened the issuance report.');
-        redirect(safe_back($_GET['back'] ?? url('matter', ['id' => $ev['matter_id']])), 'Nothing to send for the Expected Issue Date. On the issue day (' . fmt_long($ev['due_date']) . ') Madder saves the patent certificate into the file, writes the issuance letter and adds a "' . ISSUANCE_REPORT_EVENT . '" to-do with the client email.');
+        redirect(safe_back($_GET['back'] ?? url('matter', ['id' => $ev['matter_id']])), 'Nothing to send for the Expected Issue Date. On the issue day (' . fmt_long($ev['due_date']) . ') Pendant saves the patent certificate into the file, writes the issuance letter and adds a "' . ISSUANCE_REPORT_EVENT . '" to-do with the client email.');
     }
     $abn = $ev['type'] === ABANDON_REPORT_EVENT;   // 2026-10-01
     if (!$abn && q1('SELECT dead FROM matters WHERE id=?', [$ev['matter_id']])['dead']) redirect(safe_back($_GET['back'] ?? url('matter', ['id' => $ev['matter_id']])), 'That property is dead; nothing to remind the client about.');
@@ -979,7 +991,7 @@ case 'send': {
     }
     echo docx_box($m);   // 2026-10-05: open the Word letter, and its PDF (made on the laptop when it is closed) is ticked here
     if ($mf) {
-        echo '<div class="box" style="background:#faf9f6"><b>Attach from the file</b> <span class="muted">(PDFs saved in the Dropbox folder in the last 45 days, newest first; they reach Madder within 10 minutes of saving)</span>';
+        echo '<div class="box" style="background:#faf9f6"><b>Attach from the file</b> <span class="muted">(PDFs saved in the Dropbox folder in the last 45 days, newest first; they reach Pendant within 10 minutes of saving)</span>';
         foreach (array_slice($mf, 0, ($ev['type'] ?? '') === REG_REPORT ? 8 : 6) as $i => $f) echo '<label class="chk"><input type="checkbox" name="file_att[]" value="' . h($f['name']) . '"' . (($fp && $i === 0) || ($noa && stripos($f['name'], 'Notice of Allowance') !== false) || in_array($f['name'], $oaTick, true) || (is_issue_report((string)$ev['type']) && preg_match('/issue\s*notif/i', $f['name'])) || (($ev['type'] ?? '') === FILING_REPORT_EVENTS['patent'] && preg_match('/(Filing Report.*\.pdf|AckReceipt-(filing|fees)\.pdf|Assignment Cover Sheet\.pdf)$/i', $f['name'])) || (($ev['type'] ?? '') === FILING_REPORT_EVENTS['trademark'] && preg_match('/^receipt-\d{8}\.pdf$/i', $f['name'])) || (($ev['type'] ?? '') === PAT_SIGN_EVENT && preg_match('/-(Specification|Figures)-final\.pdf$/i', $f['name'])) || (($ev['type'] ?? '') === 'Report Assignment Filed' && preg_match('/AckReceipt-Recordation\.pdf$/i', $f['name'])) || (($ev['type'] ?? '') === 'Report Assignment Recorded' && preg_match('/Assignment (Recordation|Cover Sheet)\.pdf$/i', $f['name'])) || (($ev['type'] ?? '') === ISSUANCE_REPORT_EVENT && preg_match('/(Patent Issuance Letter.*\.pdf|U\.?\s*S\.?\s*Patent\s+[D\d,]+.*\.pdf|eGrant.*\.pdf)$/i', $f['name'])) ? ' checked' : '') . '> 📎 </label>' . mf_view_link($m['ref'], $f['name']) . ' <small class="muted">' . date('Y-m-d H:i', $f['mtime']) . ', ' . number_format($f['size'] / 1024) . ' KB</small><br>';
         echo '</div>';
     }
@@ -990,17 +1002,17 @@ case 'send': {
         . 'function chk(){fetch(u,{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(j){if(j.files&&j.files.length){j.files.forEach(add);el.textContent="Receipt attached: "+j.files.join(", ");return;}if(++n<240)setTimeout(chk,15000);else el.textContent="No receipt in the file yet.";}).catch(function(){if(++n<240)setTimeout(chk,15000);});}setTimeout(chk,10000);})();</script>';
     if ($noa && !array_filter($mf, fn($f) => stripos($f['name'], 'Notice of Allowance') !== false)) echo fetch_now_html(($nc = oa_report_corr($ev)) ? (int)$nc['id'] : null, 'Notice of Allowance', here_uri());   // 2026-10-06
     if ($oar && !$oaTick) echo fetch_now_html(($nc = oa_report_corr($ev)) ? (int)$nc['id'] : null, oa_report_label((string)$ev['doc_code']), here_uri());   // 2026-10-06
-    if (!$mf && $fp) echo '<p class="bad">No recent PDF from the ' . h($m['ref']) . ' Dropbox folder has reached Madder yet (files arrive within 10 minutes of saving). Attach the receipt below instead.</p>';
+    if (!$mf && $fp) echo '<p class="bad">No recent PDF from the ' . h($m['ref']) . ' Dropbox folder has reached Pendant yet (files arrive within 10 minutes of saving). Attach the receipt below instead.</p>';
     echo '<div class="box" style="background:#faf9f6"><b>Add an attachment</b> <a class="btn small ghost" href="https://payments.paysimple.com/" target="_blank" rel="noopener">Open invoice system</a>' . (($gf = govfee_suggest($m, $fillEv, $fp ? $fp['cur'] : null)) ? ' <span class="govfee">' . $gf['html'] . (empty($gf['patent']) ? ' <a class="muted" href="' . GOVFEE_URL . '" target="_blank" rel="noopener" title="USPTO fee schedule">schedule</a>' : '') . govfee_stale_html() . '</span>' : '') . (($t['needs_invoice'] ?? 0) && empty($gf['patent']) ? ' <span class="muted">(this reminder normally goes out with the invoice)</span>' : '') . '<div>' . ($atts ? implode(' ', array_map(fn($a) => '<span class="chip-static">📎 ' . h($a['name']) . ' <small>' . number_format($a['size'] / 1024) . ' KB</small></span>', $atts)) : '') . '</div><input type="file" name="attach[]" accept="application/pdf" multiple style="margin-top:6px"> <span class="muted">or drag PDFs onto this box</span><div id="dropnames" class="muted"></div></div>';
     // Drag-and-drop onto the attachment box: dropped PDFs join whatever was already chosen in the file input.
     echo '<script>(function(){var inp=document.querySelector("input[name=\'attach[]\']"),box=inp.closest(".box"),nm=document.getElementById("dropnames");function show(){nm.textContent=inp.files.length?"Attaching: "+Array.from(inp.files).map(function(f){return f.name;}).join(", "):"";}inp.addEventListener("change",show);'
         . '["dragenter","dragover"].forEach(function(e){box.addEventListener(e,function(v){v.preventDefault();box.style.outline="2px dashed #c9a227";});});["dragleave","drop"].forEach(function(e){box.addEventListener(e,function(v){v.preventDefault();box.style.outline="";});});'
         . 'box.addEventListener("drop",function(v){var dt=new DataTransfer(),bad=[];Array.from(inp.files).forEach(function(f){dt.items.add(f);});Array.from(v.dataTransfer.files).forEach(function(f){if(/\\.pdf$/i.test(f.name)||f.type=="application/pdf")dt.items.add(f);else bad.push(f.name);});inp.files=dt.files;show();if(window.ffAttUps)ffAttUps();if(bad.length)alert("Only PDFs can be attached; skipped "+bad.join(", "));});})();</script>';
-    // 2026-10-08: a PaySimple invoice PDF saved with the file number in its name is attached on its own when focus comes back to Madder.
+    // 2026-10-08: a PaySimple invoice PDF saved with the file number in its name is attached on its own when focus comes back to Pendant.
     // The server cannot see the laptop, so the browser reads the downloads folder (File System Access API; folder chosen once, remembered in IndexedDB).
     echo '<div id="invwatch" class="muted" hidden style="margin-top:4px"></div><script>(function(){var REF=' . json_encode(strtoupper(preg_match('/^[A-Za-z]{3}\d{3}/', (string)$m['ref'], $refm) ? $refm[0] : (string)$m['ref'])) . ';' . <<<'JS'
 if(!window.showDirectoryPicker||!window.indexedDB)return;var inp=document.querySelector("input[name='attach[]']"),st=document.getElementById("invwatch"),h=null,done={},busy=false,last="";st.hidden=false;
-function db(){return new Promise(function(ok,no){var r=indexedDB.open("ffmadder",1);r.onupgradeneeded=function(){r.result.createObjectStore("kv");};r.onsuccess=function(){ok(r.result);};r.onerror=function(){no(r.error);};});}
+function db(){return new Promise(function(ok,no){var r=indexedDB.open("ffpendant",1);r.onupgradeneeded=function(){r.result.createObjectStore("kv");};r.onsuccess=function(){ok(r.result);};r.onerror=function(){no(r.error);};});}
 function kv(k,v){return db().then(function(d){return new Promise(function(ok,no){var t=d.transaction("kv",v===undefined?"readonly":"readwrite"),s=t.objectStore("kv"),r=v===undefined?s.get(k):s.put(v,k);r.onsuccess=function(){ok(r.result);};r.onerror=function(){no(r.error);};});});}
 function btn(txt,fn){var b=document.createElement("button");b.type="button";b.className="small ghost";b.textContent=txt;b.addEventListener("click",fn);return b;}
 function pick(){window.showDirectoryPicker({id:"ffinvoices",mode:"read",startIn:"downloads"}).then(function(d){h=d;return kv("invdir",d);}).then(scan).catch(function(){});}
@@ -1047,19 +1059,19 @@ case 'queue': {
         echo '</tbody></table>';
     }
     echo '<h2>Individual events</h2>'; events_table(q("$EVSQL WHERE e.status='proposed' AND COALESCE(e.proposed_by,'')<>'receipts' AND m.dead=0 ORDER BY e.due_date")); layout_bottom(); break; }
-case 'pc_launch': {   // after "Download with Claude": opens madder-pc://run, which starts the supervised Claude session on a computer set up for it
+case 'pc_launch': {   // after "Download with Claude": opens pendant-pc://run, which starts the supervised Claude session on a computer set up for it
     layout_top('Download with Claude', $flash); echo dash_cards($EVSQL, 'pc_launch')[0]; pc_schema(); pc_reconcile();
     $sel = array_values(array_filter(array_map('intval', explode(',', (string)($_GET['ids'] ?? ''))))); $sel = $sel ? array_column(q('SELECT id FROM pc_requests WHERE status="sent" AND id IN (' . implode(',', $sel) . ') ORDER BY id'), 'id') : [];
     $q = q('SELECT r.status, r.requested_by, r.requested_at, r.note, r.action_base, m.ref, m.id mid, c.doc_code, c.mail_date FROM pc_requests r JOIN correspondence c ON c.id=r.correspondence_id JOIN matters m ON m.id=c.matter_id
         WHERE r.status="sent" OR r.finished_at > datetime("now","-1 day") ORDER BY r.id DESC LIMIT 40');
-    echo '<h1>Download from Patent Center with Claude</h1><div class="box"><p>A terminal with a Claude session opens on this computer. Watch it and approve its steps: it downloads each paper in your browser and saves it into your Dropbox matter folder under the right name. If Patent Center asks you to sign in, sign in yourself and tell Claude to continue. Madder marks each document saved once Dropbox syncs it (usually within minutes).</p>';
+    echo '<h1>Download from Patent Center with Claude</h1><div class="box"><p>A terminal with a Claude session opens on this computer. Watch it and approve its steps: it downloads each paper in your browser and saves it into your Dropbox matter folder under the right name. If Patent Center asks you to sign in, sign in yourself and tell Claude to continue. Pendant marks each document saved once Dropbox syncs it (usually within minutes).</p>';
     if (!$sel) echo '<p class="muted">Nothing selected. Use "Download with Claude" on a record, or the "only in Patent Center" card on the Dashboard.</p>';
     foreach (array_chunk($sel, PC_BATCH) as $i => $chunk) {
         $link = pc_link($chunk, (string)(auth_name() ?: auth_user()));
         echo '<p><a class="btn gold" href="' . h($link) . '">Start Claude on this computer' . (count($sel) > PC_BATCH ? ' (part ' . ($i + 1) . ': ' . count($chunk) . ' documents)' : '') . '</a></p>';
         if ($i === 0) echo '<script>setTimeout(function(){location.href=' . json_encode($link, JSON_UNESCAPED_SLASHES) . '},400)</script>';
     }
-    echo '<p class="muted">Nothing happens? This computer is not set up yet: the attorney\'s laptop is; staff\'s Mac and Windows computers use the installer in Dropbox, matters/Docket/Madder Claude setup.</p></div>';
+    echo '<p class="muted">Nothing happens? This computer is not set up yet: the attorney\'s laptop is; staff\'s Mac and Windows computers use the installer in Dropbox, matters/Docket/Pendant Claude setup.</p></div>';
     if ($q) { echo '<h2>Requests</h2><table><thead><tr><th class="file">File</th><th>Document</th><th>Status</th><th>Asked by</th><th>Note</th></tr></thead><tbody>';
         foreach ($q as $r) echo '<tr><td class="file"><a href="' . url('matter', ['id' => $r['mid']]) . '"><b>' . h($r['ref']) . '</b></a></td><td>' . h($r['doc_code'] . ' of ' . fmt_date($r['mail_date'])) . '</td><td>' . h($r['status']) . '</td><td>' . h($r['requested_by'] . ', ' . et($r['requested_at'], 16)) . '</td><td class="note">' . h($r['note']) . '</td></tr>';
         echo '</tbody></table>'; }
@@ -1074,9 +1086,9 @@ case 'mfview': {   // a file in a matter folder, opened in the browser (2026-10-
     header('Content-Type: ' . ($types[$ext] ?? 'application/octet-stream')); header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . preg_replace('/[^A-Za-z0-9._ (),&-]+/', '_', $name) . '"');
     header('Content-Length: ' . filesize($local)); header('X-Content-Type-Options: nosniff'); header('Cache-Control: private, no-store'); readfile($local); exit; }
 case 'docxkit': {   // the Open DOCX installer for this computer (built by tools/ffdocx/make_kits.py at deploy)
-    $os = ($_GET['os'] ?? '') === 'Mac' ? 'Mac' : 'Windows'; $f = DOCKET_ROOT . "/templates/Madder-Open-DOCX-$os.zip";
+    $os = ($_GET['os'] ?? '') === 'Mac' ? 'Mac' : 'Windows'; $f = DOCKET_ROOT . "/templates/Pendant-Open-DOCX-$os.zip";
     if (!is_file($f)) { http_response_code(404); exit('Installer not found.'); }
-    header('Content-Type: application/zip'); header('Content-Disposition: attachment; filename="Madder-Open-DOCX-' . $os . '.zip"'); header('Content-Length: ' . filesize($f)); readfile($f); exit; }
+    header('Content-Type: application/zip'); header('Content-Disposition: attachment; filename="Pendant-Open-DOCX-' . $os . '.zip"'); header('Content-Length: ' . filesize($f)); readfile($f); exit; }
 case 'sourcpt': {   // the send page's "Waiting for the USPTO receipt" line checks back (lib/noa.php, 2026-10-12)
     header('Content-Type: application/json'); header('Cache-Control: no-store');
     $ref = (string)($_GET['ref'] ?? ''); sou_folder_refresh($ref); $files = sou_receipt_files(matter_files($ref), (string)($_GET['kind'] ?? ''));
@@ -1121,7 +1133,7 @@ case 'dropbox': {   // Advanced > Dropbox
            . '<div class="bar">' . btn('dbx_sync_now', [], 'Index now', 'gold') . ' ' . btn('dbx_disconnect', [], 'Disconnect', 'ghost', 'Disconnect Dropbox? The folder jobs stop until it is connected again.') . '</div></div>';
     } else {
         echo '<div class="box"><h2 style="margin-top:0">Connect</h2><ol>'
-           . '<li>At <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener">dropbox.com/developers/apps</a>: <b>Create app</b>, <b>Scoped access</b>, <b>Full Dropbox</b>, name it (e.g. "FF Madder").</li>'
+           . '<li>At <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener">dropbox.com/developers/apps</a>: <b>Create app</b>, <b>Scoped access</b>, <b>Full Dropbox</b>, name it (e.g. "FF Pendant").</li>'
            . '<li>On its <b>Permissions</b> tab tick <b>files.metadata.read</b>, <b>files.content.read</b> and <b>files.content.write</b>, then <b>Submit</b>.</li>'
            . '<li>On its <b>Settings</b> tab copy the <b>App key</b> and paste it here:</li></ol>'
            . '<form method="post" class="bar">' . csrf_field() . '<input type="hidden" name="action" value="dbx_start"><input type="text" name="app_key" size="24" placeholder="App key" value="' . h($c['app_key'] ?? '') . '"> <button class="gold">Get the Dropbox link</button></form>';
@@ -1144,12 +1156,12 @@ case 'reminders': {
     foreach ($rows as $r) {
         $x = '<details class="box"><summary>' . reminder_pill($r) . ' <b>' . fmt_date($tab === 'done' && $r['sent_at'] ? et($r['sent_at'], 10) : $r['scheduled_for']) . '</b> · ' . lead_label((int)$r['lead']) . ' · <a href="' . url('matter', ['id' => $r['mid']]) . '">' . h($r['ref']) . '</a> · ' . h($r['type']) . ' due ' . fmt_date($r['due_date']) . ' · to ' . h($r['to_email'] ?: '(no address)') . '</summary>';
         $x .= '<p class="muted">' . h($r['reason']) . ($r['sent_at'] ? ' · ' . h(et($r['sent_at'])) : '') . '</p><p><b>Subject:</b> ' . h($r['subject']) . '</p>' . mail_html(strip_plain_signature((string)$r['body']));
-        if (in_array($r['status'], ['held', 'pending'], true)) $x .= '<div class="bar">' . (auth_email() !== '' && $r['es'] === 'open' ? '<a class="btn small" href="' . url('send', ['id' => $r['event_id'], 'rem' => $r['id'], 'back' => here_uri()]) . '">Review &amp; send</a>' : '') . ($r['es'] === 'open' ? ' ' . btn('report_cancel', ['id' => $r['event_id'], 'rem' => $r['id'], 'back' => here_uri()], 'Cancel', 'small ghost', 'Cancel this email? Madder will not send it.') : '') . (is_admin() ? btn('rem_skip', ['id' => $r['id'], 'back' => here_uri()], 'Skip', 'small ghost') : '') . '</div>';
+        if (in_array($r['status'], ['held', 'pending'], true)) $x .= '<div class="bar">' . (auth_email() !== '' && $r['es'] === 'open' ? '<a class="btn small" href="' . url('send', ['id' => $r['event_id'], 'rem' => $r['id'], 'back' => here_uri()]) . '">Review &amp; send</a>' : '') . ($r['es'] === 'open' ? ' ' . btn('report_cancel', ['id' => $r['event_id'], 'rem' => $r['id'], 'back' => here_uri()], 'Cancel', 'small ghost', 'Cancel this email? Pendant will not send it.') : '') . (is_admin() ? btn('rem_skip', ['id' => $r['id'], 'back' => here_uri()], 'Skip', 'small ghost') : '') . '</div>';
         $items[] = [(string)(($tab === 'done' && $r['sent_at']) ? $r['sent_at'] : $r['scheduled_for']), $x . '</details>'];
     }
     // Report to-dos (receipts, notices, abandonment) that have no reminder row yet: the client email waits for Send all the same (2026-10-03).
     if ($tab === 'todo') foreach (q("SELECT e.*, m.ref, m.id mid FROM events e JOIN matters m ON m.id=e.matter_id LEFT JOIN reminders r ON r.event_id=e.id WHERE e.status='open' AND e.type LIKE 'Report %' AND r.id IS NULL ORDER BY e.due_date") as $e)
-        $items[] = [(string)$e['due_date'], '<div class="box"><span class="pill pending">ready</span> <b>' . fmt_date($e['due_date']) . '</b> · <a href="' . url('matter', ['id' => $e['mid']]) . '">' . h($e['ref']) . '</a> · ' . h($e['type']) . ' <span class="muted">' . h((string)$e['note']) . '</span> ' . (auth_email() !== '' ? '<a class="btn small" href="' . url('send', ['id' => $e['id'], 'back' => here_uri()]) . '">Review &amp; send</a>' : '') . ' ' . btn('report_cancel', ['id' => $e['id'], 'back' => here_uri()], 'Cancel', 'small ghost', 'Cancel this email? Madder will not send it.') . '</div>'];
+        $items[] = [(string)$e['due_date'], '<div class="box"><span class="pill pending">ready</span> <b>' . fmt_date($e['due_date']) . '</b> · <a href="' . url('matter', ['id' => $e['mid']]) . '">' . h($e['ref']) . '</a> · ' . h($e['type']) . ' <span class="muted">' . h((string)$e['note']) . '</span> ' . (auth_email() !== '' ? '<a class="btn small" href="' . url('send', ['id' => $e['id'], 'back' => here_uri()]) . '">Review &amp; send</a>' : '') . ' ' . btn('report_cancel', ['id' => $e['id'], 'back' => here_uri()], 'Cancel', 'small ghost', 'Cancel this email? Pendant will not send it.') . '</div>'];
     usort($items, fn($a, $b) => $tab === 'done' ? strcmp($b[0], $a[0]) : strcmp($a[0], $b[0]));   // Done: newest first; To do: soonest first (2026-09-28)
     if ($tab === 'todo') { echo held_section_html(); echo '<h2>Client emails to review &amp; send <small>(ready = click Review &amp; send; blocked = waiting for a template approval or a client email address)</small></h2>'; }
     if (!$items) echo '<p class="muted">None.</p>';
@@ -1173,7 +1185,7 @@ case 'templates': {
     layout_bottom(); break; }
 case 'inbox': {
     layout_top('USPTO mail', $flash); $ing = $_SESSION['ingest'] ?? null; unset($_SESSION['ingest']);
-    echo '<h1>USPTO mail</h1><p class="muted">Every hour Madder reads all email from @uspto.gov in the attorney\'s Gmail with a read-only token: nothing is marked read or moved, and each message is handled once. Notices are docketed; filing and fee receipts are saved into the matter folder, the deadline they satisfy is proposed done, and a client email is queued for checking; workflow mail (e-signature requests, surveys, newsletters) is ignored; anything else is held below. Only email that carries the USPTO\'s own signature is acted on. Below that, paste a notification by hand (or load a sample), preview what it would do, then apply.</p>';
+    echo '<h1>USPTO mail</h1><p class="muted">Every hour Pendant reads all email from @uspto.gov in the attorney\'s Gmail with a read-only token: nothing is marked read or moved, and each message is handled once. Notices are docketed; filing and fee receipts are saved into the matter folder, the deadline they satisfy is proposed done, and a client email is queued for checking; workflow mail (e-signature requests, surveys, newsletters) is ignored; anything else is held below. Only email that carries the USPTO\'s own signature is acted on. Below that, paste a notification by hand (or load a sample), preview what it would do, then apply.</p>';
     if (is_admin()) echo '<div class="box"><form method="post" class="bar">' . csrf_field() . '<input type="hidden" name="action" value="gmail_pull"><label>Look back <input type="number" name="days" value="7" min="1" max="60" size="3"> days</label> <button class="gold">Pull from Gmail now</button> <span class="muted">' . (gmail_cfg() ? 'Gmail token found.' : 'Gmail is not configured on this machine.') . '</span></form></div>';
     $nh = count(held_open()); echo '<p class="box">' . ($nh ? '<b>' . $nh . ' USPTO email(s) to read</b> are listed' : 'USPTO email to read is listed') . ' on <a href="' . url('reminders') . '#held">Emails to send &amp; USPTO mail</a> (2026-10-03: one list).</p>';
     $seen = q('SELECT * FROM gmail_seen ORDER BY ts DESC LIMIT 30');
@@ -1209,8 +1221,8 @@ case 'delete': {   // Advanced > Delete record
         foreach ($dm as $d) {
             $ne = q1('SELECT count(*) c FROM events WHERE matter_id=?', [$d['id']])['c']; $no = q1('SELECT count(*) c FROM events WHERE matter_id=? AND status IN ("open","proposed")', [$d['id']])['c']; $nm = q1('SELECT count(*) c FROM outbox WHERE matter_id=?', [$d['id']])['c'];
             echo '<div class="box"><p><a href="' . url('matter', ['id' => $d['id']]) . '"><b>' . h($d['ref']) . '</b></a> · ' . h(ucfirst((string)$d['kind'])) . ' · ' . h($d['country']) . ' · ' . h($d['title'] ?: '(no title)') . ' · client ' . h($d['client_code']) . '</p>'
-               . '<p>' . $ne . ' event(s), ' . $no . ' still open; ' . $nm . ' email(s) recorded. Deleting removes all of them from Madder. A full copy is kept so it can be restored.</p>'
-               . '<form method="post" class="bar" onsubmit="return confirm(\'Delete ' . h($d['ref']) . ' permanently from Madder?\')">' . csrf_field() . '<input type="hidden" name="action" value="delete_matter"><input type="hidden" name="matter_id" value="' . $d['id'] . '"><input type="hidden" name="back" value="' . h(url('delete', ['ref' => $ref])) . '">'
+               . '<p>' . $ne . ' event(s), ' . $no . ' still open; ' . $nm . ' email(s) recorded. Deleting removes all of them from Pendant. A full copy is kept so it can be restored.</p>'
+               . '<form method="post" class="bar" onsubmit="return confirm(\'Delete ' . h($d['ref']) . ' permanently from Pendant?\')">' . csrf_field() . '<input type="hidden" name="action" value="delete_matter"><input type="hidden" name="matter_id" value="' . $d['id'] . '"><input type="hidden" name="back" value="' . h(url('delete', ['ref' => $ref])) . '">'
                . '<label>Type the file number to confirm <input type="text" name="confirm_ref" size="12" autocomplete="off"></label><button class="small" style="background:var(--red);border-color:var(--red)">Delete record</button></form></div>';
         }
     }
@@ -1248,7 +1260,7 @@ case 'newfiling': {   // Create/Delete > New filing (2026-10-02)
         $ms = q('SELECT * FROM matters WHERE ref=? ORDER BY dead, id DESC', [$ref]);
         echo '<div class="box">' . ($ms ? '<p>' . implode('<br>', array_map(fn($x) => '<a href="' . url('matter', ['id' => $x['id']]) . '"><b>' . h($x['ref']) . '</b></a> · ' . h(ucfirst((string)$x['kind'])) . ' · ' . h(trunc((string)$x['title'], 60)) . ($x['app_no'] ? ' · ' . h(fmt_app((string)$x['app_no'], (string)$x['country'])) : '') . ($x['dead'] ? ' <span class="muted">(inactive)</span>' : ''), $ms)) . '</p>' : '<p class="muted">No record yet for ' . h($ref) . '; the receipts will create it.</p>')
            . '<form method="post" enctype="multipart/form-data" id="nf">' . csrf_field() . '<input type="hidden" name="action" value="new_filing"><input type="hidden" name="ref" value="' . h($ref) . '">'
-           . '<div id="drop" style="border:2px dashed #c9a227;border-radius:8px;padding:28px;text-align:center;background:#faf8f3;cursor:pointer"><b>Drop the receipts here</b> from your Downloads folder<div class="muted" style="margin-top:6px">Patent: the acknowledgement receipt, the fee receipt, and the assignment cover sheet if one was recorded. Trademark: the Trademark Center receipt (receipt-SERIAL.pdf).<br>Madder reads them, so it knows whether this is a patent or a trademark filing.</div><input type="file" name="receipts[]" id="rf" accept="application/pdf" multiple style="display:none"><div id="fl" style="margin-top:10px"></div></div>'
+           . '<div id="drop" style="border:2px dashed #c9a227;border-radius:8px;padding:28px;text-align:center;background:#faf8f3;cursor:pointer"><b>Drop the receipts here</b> from your Downloads folder<div class="muted" style="margin-top:6px">Patent: the acknowledgement receipt, the fee receipt, and the assignment cover sheet if one was recorded. Trademark: the Trademark Center receipt (receipt-SERIAL.pdf).<br>Pendant reads them, so it knows whether this is a patent or a trademark filing.</div><input type="file" name="receipts[]" id="rf" accept="application/pdf" multiple style="display:none"><div id="fl" style="margin-top:10px"></div></div>'
            . '<p><button class="gold" id="go" disabled>Save into ' . h($ref) . ' and prepare the email</button></p></form></div>'
            . '<script>(function(){var d=document.getElementById("drop"),f=document.getElementById("rf"),l=document.getElementById("fl"),g=document.getElementById("go");function show(){l.innerHTML="";for(var i=0;i<f.files.length;i++){var s=document.createElement("div");s.textContent="📎 "+f.files[i].name;l.appendChild(s);}g.disabled=!f.files.length;}d.onclick=function(){f.click();};f.onchange=show;["dragover","dragenter"].forEach(function(e){d.addEventListener(e,function(v){v.preventDefault();d.style.background="#f3ecd8";});});["dragleave","drop"].forEach(function(e){d.addEventListener(e,function(v){v.preventDefault();d.style.background="#faf8f3";});});d.addEventListener("drop",function(v){f.files=v.dataTransfer.files;show();});})();</script>';
     }
@@ -1268,13 +1280,34 @@ case 'clientreport': {   // Create/Delete > Client report (2026-10-02): type the
        . '<p class="muted">One PDF with all of the client\'s properties: the deadlines of the next 12 months, then every patent and trademark with its numbers, dates, status and nearest deadlines. Type the client code (or part of the client name) and press Enter.</p></div>';
     if ($found && !empty($found['matches'])) { echo '<div class="box"><b>Several clients match "' . h($qv) . '":</b><table><tr><th>Code</th><th>Client</th><th>Properties</th></tr>'; foreach ($found['matches'] as $x) echo '<tr><td><a href="' . url('clientreport', ['code' => $x['code']]) . '"><b>' . h($x['code']) . '</b></a></td><td>' . h($x['name']) . '</td><td>' . (int)$x['n'] . '</td></tr>'; echo '</table></div>'; }
     layout_bottom(); break; }
+case 'dbxfill': {   // 2026-10-15: what the matter's Dropbox folder says, against the record; tick and apply
+    $m = q1('SELECT * FROM matters WHERE id=?', [(int)($_GET['id'] ?? 0)]); if (!$m) redirect('?', 'No such matter.');
+    layout_top('Fill ' . $m['ref'], $flash); $g = dbx_guess((string)$m['ref']); $d = dbx_fill_diff($m, $g); $here = url('matter', ['id' => $m['id']]);
+    echo '<h1>' . h($m['ref']) . ' <small class="muted">Dropbox ' . h($g['folder'] ?: '-') . '</small></h1><div class="box">';
+    if ($g['note'] !== '') echo '<p class="' . ($g['found'] ? 'muted' : 'bad') . '">' . h($g['note']) . '</p>';
+    if (!$d) echo '<p>The record already matches the papers.</p>';
+    else { echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="dbx_fill_apply"><input type="hidden" name="matter_id" value="' . $m['id'] . '"><input type="hidden" name="back" value="' . h(here_uri()) . '"><table><tr><th></th><th>Field</th><th>Now</th><th>Dropbox</th><th>from</th></tr>';
+        foreach ($d as $k => [$cur, $new, $src]) echo '<tr><td><input type="checkbox" name="use_' . $k . '" value="1"' . ($cur === '' ? ' checked' : '') . '></td><td>' . h(DBXF_FIELDS[$k] ?? $k) . '</td><td>' . ($cur === '' ? '<span class="muted">-</span>' : h($cur)) . '</td><td><input type="text" name="v_' . $k . '" value="' . h($new) . '" size="' . ($k === 'title' ? 40 : 14) . '"></td><td class="muted">' . h($src) . '</td></tr>';
+        echo '</table><button class="gold">Apply</button> <a class="btn ghost" href="' . h($here) . '">Back</a></form>'; }
+    if (!$d) echo '<a class="btn ghost" href="' . h($here) . '">Back</a>';
+    echo '</div>'; layout_bottom(); break; }
 case 'newmatter': {
     layout_top('New matter', $flash); $code = strtoupper(trim((string)($_GET['code'] ?? ''))); $next = '';
     if (preg_match('/^[A-Z]{3}$/', $code)) { $mx = q1('SELECT max(CAST(substr(ref, 4, 3) AS INTEGER)) n FROM matters WHERE ref GLOB ? AND client_code=?', [$code . '[0-9][0-9][0-9]*', $code])['n'] ?? 0; $next = sprintf('%s%03d', $code, (int)$mx + 1); }
+    // 2026-10-15: a file number alone -> the record's data from its Dropbox folder (lib/dbxfill.php)
+    $dref = strtoupper(trim((string)($_GET['dbx'] ?? ''))); $G = []; $gx = null;
+    if ($dref !== '') { $gx = dbx_guess($dref); $G = array_map(fn($x) => $x[0], $gx['fields']); $next = $dref; if ($code === '') { $code = client_from_ref($dref); } }
     $cl = $code ? q1('SELECT * FROM clients WHERE code=?', [$code]) : null;
-    echo '<h1>New matter</h1><div class="box"><form method="get" class="bar"><input type="hidden" name="p" value="newmatter"><label>Client code (3 letters) <input type="text" name="code" value="' . h($code) . '" size="6" maxlength="4" style="text-transform:uppercase"></label><button class="small">Next file number</button>' . ($next ? ' <b>' . h($next) . '</b>' . ($cl ? ' · ' . h($cl['name'] ?: 'client exists, no name yet') : ' · <span class="bad">new client</span>') : '') . '</form>';
-    echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="add_matter"><input type="hidden" name="back" value="' . h(here_uri()) . '"><div class="bar"><label>File number <input type="text" name="ref" value="' . h($next) . '" size="10" required style="text-transform:uppercase"></label><label>Kind <select name="kind"><option value="patent">patent</option><option value="trademark">trademark</option><option value="copyright">copyright</option><option value="general">general</option></select><script>(function(){var k=document.currentScript.previousElementSibling,f=k.form;if(!f)return;function set(){var t=f.querySelector("input[name=title]"),a=f.querySelector("input[name=app_no]");var L={trademark:["mark","serial no."],patent:["title","application no."]}[k.value]||["title","application no."];if(t)t.placeholder=L[0];if(a)a.placeholder=L[1];}k.addEventListener("change",set);set();})();</script></label><label>Patent type <select name="app_type"><option value="utility">utility / design / PCT</option><option value="provisional">provisional</option></select></label></div>';
-    echo '<div class="bar"><input type="text" name="title" placeholder="title or mark" size="50"><input type="text" name="country" value="United States" size="16"><input type="text" name="app_no" placeholder="application no." size="18"><label>Filed <input type="date" name="filing_date"></label></div>';
+    $gv = fn(string $k, string $d = '') => h($G[$k] ?? $d);
+    echo '<h1>New matter</h1>';
+    echo '<div class="box"><form method="get" class="bar"><input type="hidden" name="p" value="newmatter"><label>File number <input type="text" name="dbx" value="' . h($dref) . '" size="12" style="text-transform:uppercase" placeholder="e.g. XYZ046.CA"></label><button class="small">Look up in Dropbox</button></form>';
+    if ($gx) { echo $gx['note'] !== '' ? '<p class="' . ($gx['found'] ? 'muted' : 'bad') . '">' . h($gx['note']) . '</p>' : '';
+        if ($gx['fields']) { echo '<table><tr><th>' . h($gx['folder']) . '</th><th></th><th>from</th></tr>'; foreach ($gx['fields'] as $k => [$v, $src]) echo '<tr><td>' . h(DBXF_FIELDS[$k] ?? $k) . '</td><td><b>' . h($v) . '</b></td><td class="muted">' . h($src) . '</td></tr>'; echo '</table>'; }
+        if ($ex = q('SELECT id, kind FROM matters WHERE ref=?', [$dref])) echo '<p class="bad">' . h($dref) . ' already exists: ' . implode(' ', array_map(fn($x) => '<a href="' . url('matter', ['id' => $x['id']]) . '">' . h($x['kind']) . '</a>', $ex)) . '</p>'; }
+    echo '</div><div class="box"><div class="box"><form method="get" class="bar"><input type="hidden" name="p" value="newmatter"><label>Client code (3 letters) <input type="text" name="code" value="' . h($code) . '" size="6" maxlength="4" style="text-transform:uppercase"></label><button class="small">Next file number</button>' . ($next ? ' <b>' . h($next) . '</b>' . ($cl ? ' · ' . h($cl['name'] ?: 'client exists, no name yet') : ' · <span class="bad">new client</span>') : '') . '</form>';
+    echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="add_matter"><input type="hidden" name="back" value="' . h(here_uri()) . '"><div class="bar"><label>File number <input type="text" name="ref" value="' . h($next) . '" size="10" required style="text-transform:uppercase"></label><label>Kind <select name="kind">' . implode('', array_map(fn($k) => '<option value="' . $k . '"' . (($G['kind'] ?? '') === $k ? ' selected' : '') . '>' . $k . '</option>', ['patent', 'trademark', 'copyright', 'general'])) . '</select><script>(function(){var k=document.currentScript.previousElementSibling,f=k.form;if(!f)return;function set(){var t=f.querySelector("input[name=title]"),a=f.querySelector("input[name=app_no]");var L={trademark:["mark","serial no."],patent:["title","application no."]}[k.value]||["title","application no."];if(t)t.placeholder=L[0];if(a)a.placeholder=L[1];}k.addEventListener("change",set);set();})();</script></label><label>Patent type <select name="app_type"><option value="utility">utility / design / PCT</option><option value="provisional"' . (($G['app_type'] ?? '') === 'Provisional' ? ' selected' : '') . '>provisional</option></select></label></div>';
+    echo '<div class="bar"><input type="text" name="title" value="' . $gv('title') . '" placeholder="title or mark" size="50"><input type="text" name="country" value="' . $gv('country', 'United States') . '" size="16"><input type="text" name="app_no" value="' . $gv('app_no') . '" placeholder="application no." size="18"><label>Filed <input type="date" name="filing_date" value="' . $gv('filing_date') . '"></label></div>';
+    echo '<div class="bar"><input type="text" name="reg_no" value="' . $gv('reg_no') . '" placeholder="registration / patent no." size="22"><label>Registered / issued <input type="date" name="grant_date" value="' . $gv('grant_date') . '"></label></div>';
     echo '<div class="bar"><input type="text" name="client_name" value="' . h($cl['name'] ?? '') . '" placeholder="client name (fills the client record)" size="34"><input type="email" name="client_email" value="' . h($cl['email'] ?? '') . '" placeholder="client email" size="30"></div>';
     echo '<p class="muted">A provisional gets its 12-month non-provisional deadline; any other patent filing gets the 12-month foreign-filing reminder.</p><button class="gold">Create matter</button></form></div>';
     layout_bottom(); break; }

@@ -3,9 +3,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/firm.php';
 /**
  * Dropbox from the server (2026-10-01: "move it all to the server starting with dropbox connection").
- * The pair host cannot run the Dropbox client, so Madder talks to the Dropbox HTTP API with its own scoped app
+ * The pair host cannot run the Dropbox client, so Pendant talks to the Dropbox HTTP API with its own scoped app
  * (files.metadata.read, files.content.read, files.content.write). Authorisation is PKCE with an offline refresh token
- * (no app secret is stored): Advanced > Dropbox in Madder. Credentials live in data/dropbox.json (600, deny-all).
+ * (no app secret is stored): Advanced > Dropbox in Pendant. Credentials live in data/dropbox.json (600, deny-all).
  *
  * The matter folders are indexed in table dbx_files (one row per file, up to two levels below a folder), kept current with
  * list_folder/continue cursors, so every job reads names and dates from the database and downloads only the files it opens.
@@ -130,7 +130,7 @@ function dbx_index_entry(array $e): void {
     $s = dbx_split($path); if (!$s) return; [$root, $folder, $rel] = $s;
     if ($tag === 'folder') { if ($rel === '') run('INSERT OR REPLACE INTO dbx_folders(root,name,path) VALUES (?,?,?)', [$root, $folder, $path]); return; }
     if ($tag !== 'file' || $rel === '') return;
-    // 2026-10-06 (TOD018): a file Madder writes into a folder it just created (new filing) registers the folder too; until the
+    // 2026-10-06 (TOD018): a file Pendant writes into a folder it just created (new filing) registers the folder too; until the
     // next sync, mf_find saw no folder, so the send page had no receipt to attach.
     if (!q1('SELECT 1 FROM dbx_folders WHERE root=? AND lower(name)=lower(?)', [$root, $folder])) run('INSERT OR IGNORE INTO dbx_folders(root,name,path) VALUES (?,?,?)', [$root, $folder, $root . '/' . $folder]);
     run('INSERT OR REPLACE INTO dbx_files(path_lower,path,root,folder,rel,name,size,client_modified,server_modified,rev,content_hash,seen_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,COALESCE((SELECT seen_at FROM dbx_files WHERE path_lower=?), datetime("now")))',

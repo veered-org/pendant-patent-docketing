@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 /**
- * Mail-lookup activity for the morning report (2026-10-01: one set of e-mails, headed "Madder").
+ * Mail-lookup activity for the morning report (2026-10-01: one set of e-mails, headed "Pendant").
  * The Mail page (~/Projects/docket-mail) used to send its own "Docket mail:" e-mails (each sign-in, the first search
  * of the day, a daily digest). It no longer sends anything; its audit log is read here instead.
  * The window runs from the last row reported (setting maillookup_last_id), so a night without a report skips nothing.

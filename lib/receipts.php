@@ -107,7 +107,7 @@ function receipts_scan(): array {
     }
     return $r;
 }
-/** A receipt Madder itself just saved (bin/oa_fetch.php save_receipt): propose what it satisfies now, and mark the file seen so the folder scan
+/** A receipt Pendant itself just saved (bin/oa_fetch.php save_receipt): propose what it satisfies now, and mark the file seen so the folder scan
  *  does not look at it again. Returns the event types proposed. */
 function receipt_propose(int $matterId, string $path, string $name, string $saved, string $kind): array {
     receipts_schema(); $k = receipt_kind($name, $kind); $done = [];
@@ -118,7 +118,7 @@ function receipt_propose(int $matterId, string $path, string $name, string $save
             audit_done($e + ['matter_id' => $matterId], $why, false); $done[] = $e['type'];
         }
     }
-    run('INSERT OR REPLACE INTO receipt_seen(path_lower,matter_id,kind,result) VALUES (?,?,?,?)', [strtolower($path), $matterId, $k['what'] ?? '', $done ? implode('; ', $done) : 'saved by Madder']);
+    run('INSERT OR REPLACE INTO receipt_seen(path_lower,matter_id,kind,result) VALUES (?,?,?,?)', [strtolower($path), $matterId, $k['what'] ?? '', $done ? implode('; ', $done) : 'saved by Pendant']);
     return $done;
 }
 /** The receipt behind a proposal, for the "Open receipt" button: ['path', 'name', 'saved'] or null. */

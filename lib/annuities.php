@@ -13,6 +13,8 @@ declare(strict_types=1);
  *   EPN granted EP in national states (e.g. DE, FR, GB): year N due on the last day of the month of anniversary N-1 of the EP filing
  *       date (XYZ005 / XYZ007 filed 5 Aug 2013: 14th due 31 Aug 2026, as Hernandez IP stated); also GB national patents (N >= 5)
  *   JP, KR  after grant only; year N (N >= 4) due on anniversary N-1 of the REGISTRATION date
+ *   CN  after grant only (the grant-year fee is paid with registration); year N due on anniversary N-1 of the FILING date, through
+ *       year 20 (invention), 10 (utility model), 15 (design filed from 1 June 2021, else 10); 6 months' grace with surcharge
  * Not yearly (not docketed here): IL (periods at grant, 6, 10, 14, 18 years), CL (decade fees), designs (5-year renewals), US.
  */
 const ANNUITY_EVENT = 'Annuity Due';
@@ -30,12 +32,12 @@ function annuity_due(string $scheme, string $base, int $n): string {
         case 'CA': case 'AU': return add_months($base, $n * 12, false);
         case 'BR': return add_months($base, ($n - 1) * 12 + 3, false);
         case 'EP': case 'EPN': case 'GB': return last_day_of_month(add_months($base, ($n - 1) * 12, false));
-        case 'JP': case 'KR': return add_months($base, ($n - 1) * 12, false);
+        case 'JP': case 'KR': case 'CN': return add_months($base, ($n - 1) * 12, false);
     }
     throw new InvalidArgumentException("no annuity rule for $scheme");
 }
 function annuity_country_name(string $scheme, string $states = ''): string {
-    return ['CA' => 'Canada', 'AU' => 'Australia', 'BR' => 'Brazil', 'EP' => 'the European Patent Office', 'GB' => 'the United Kingdom', 'JP' => 'Japan', 'KR' => 'Korea'][$scheme]
+    return ['CA' => 'Canada', 'AU' => 'Australia', 'BR' => 'Brazil', 'EP' => 'the European Patent Office', 'GB' => 'the United Kingdom', 'JP' => 'Japan', 'KR' => 'Korea', 'CN' => 'China'][$scheme]
         ?? ($scheme === 'EPN' ? implode(', ', array_map(fn($c) => ['DE' => 'Germany', 'FR' => 'France', 'GB' => 'the United Kingdom', 'IT' => 'Italy', 'ES' => 'Spain', 'NL' => 'the Netherlands', 'CH' => 'Switzerland', 'IE' => 'Ireland'][$c] ?? $c, array_filter(explode(',', $states)))) : $scheme);
 }
 function ordinal(int $n): string { $s = ['th', 'st', 'nd', 'rd']; $v = $n % 100; return $n . ($s[($v - 20) % 10] ?? $s[$v] ?? $s[0]); }
@@ -68,7 +70,7 @@ function run_annuities(): array { annuity_schema(); $out = auto_canada(); foreac
 /* Canada, automatic (2026-10-15, "do that for any canadian trademark or patent"): no hand-confirmed basis needed.
  *   Patents: maintenance fees on every anniversary of the filing date (years 2-19), pending or granted. A live Canadian patent matter
  *     with a filing date and no basis gets one (confirmed_by 'auto'), starting at the first anniversary still ahead (earlier ones were
- *     paid at national entry or before Madder). Skipped: designs (no yearly fees), matters already carrying a hand-docketed
+ *     paid at national entry or before Pendant). Skipped: designs (no yearly fees), matters already carrying a hand-docketed
  *     Maintenance Fee Due / Renewal (those stay as they are). PCT national entries: the filing date must be the international one.
  *   Trademarks: no maintenance fees; the registration is renewed at the end of each term — 10 years from registration (15 for
  *     registrations before 17 June 2019), renewable in the 6 months before. Once a registration date is entered, the next term's
@@ -101,19 +103,102 @@ function auto_canada(bool $apply = true): array {
             $out[] = ['ref' => $m['ref'], 'what' => "maintenance fees from $filed, next year $n"];
             continue;
         }
-        $reg = substr((string)$m['grant_date'], 0, 10);
-        if (trim((string)$m['reg_no']) === '' || !preg_match('/^\d{4}-\d\d-\d\d$/', $reg)) continue;
-        $exp = null; foreach (ca_tm_expiries($reg, add_months(today(), -6, false)) as $x) if ($x >= add_months(today(), -6, false)) { $exp = $x; break; }   // still renewable (6 months' notice after expiry)
-        if ($exp === null) continue;
-        if (q1("SELECT 1 FROM events WHERE matter_id=? AND status<>'cancelled' AND (type LIKE 'Renewal%' OR type LIKE '%Renewal Ends') AND due_date BETWEEN ? AND ?", [$m['id'], add_months($exp, -7, false), add_months($exp, 7, false)])) continue;
-        foreach ([['Renewal Period Begins', add_months($exp, -6, false)], ['Renewal Period Ends', $exp]] as [$type, $due]) {
-            $note = 'Canadian registration ' . trim((string)$m['reg_no']) . ' of ' . fmt_date($reg) . ': term ends ' . fmt_date($exp);
-            if ($apply) {
-                run('INSERT INTO events(matter_id,type,due_date,status,source,doc_code,note) VALUES (?,?,?,"open","rule","CA-RENEWAL",?)', [$m['id'], $type, $due, $note]);
-                audit('rule', "$m[ref] $type " . fmt_date($due) . " ($note)", (int)$m['id']);
-            }
-            $out[] = ['ref' => $m['ref'], 'what' => "$type $due"];
+        foreach (tm_renewal_dock($m, $apply) as $w) $out[] = ['ref' => $m['ref'], 'what' => $w];
+    }
+    foreach (q("SELECT * FROM matters WHERE dead=0 AND kind IN ('patent','trademark')") as $m) {
+        if (!is_mexican($m) && !is_chinese($m)) continue;
+        if ($m['kind'] === 'trademark') { foreach (tm_renewal_dock($m, $apply) as $w) $out[] = ['ref' => $m['ref'], 'what' => $w]; continue; }
+        if (!is_chinese($m) || !($b = cn_patent_basis($m))) continue;
+        if ($apply) {
+            run('INSERT INTO annuity_basis(matter_id,scheme,base_date,next_year,last_year,source,confirmed_by,confirmed_at) VALUES (?,"CN",?,?,?,?,"auto",datetime("now"))',
+                [$m['id'], $b['filed'], $b['next'], $b['last'], 'Automatic: Chinese ' . $b['type'] . ' filed ' . $b['filed'] . ', granted ' . $b['granted']]);
+            audit('annuity', "$m[ref] Chinese annuities counted from the filing date " . fmt_date($b['filed']) . ", next = year $b[next]", (int)$m['id']);
         }
+        $out[] = ['ref' => $m['ref'], 'what' => "maintenance fees from $b[filed], next year $b[next]"];
     }
     return $out;
+}
+/* China, automatic (2026-10-15). Trademarks: 10-year terms from the registration date, ending the day before the anniversary
+ *   (certificate: 2025-12-14 to 2035-12-13); renewable in the 12 months before, 6 months' grace after. Patents: yearly annuities once
+ *   granted (rule CN above); the type comes from app_type or the 5th digit of the application number (1/8 invention, 2/9 utility
+ *   model, 3 design). Needs filing AND grant dates; skipped when annuities are already hand-docketed. */
+function is_chinese(array $m): bool { return stripos((string)$m['ref'], 'MADRID') === false && (in_array(strtolower(trim((string)$m['country'])), ['china', 'cn'], true) || preg_match('/\.CN(\b|$)/i', (string)$m['ref'])); }   // a Madrid designation renews at WIPO
+function cn_patent_basis(array $m): ?array {
+    $iso = '/^\d{4}-\d\d-\d\d$/'; $filed = substr((string)$m['filing_date'], 0, 10); $granted = substr((string)$m['grant_date'], 0, 10);
+    if (!preg_match($iso, $filed) || !preg_match($iso, $granted)) return null;
+    if (q1('SELECT 1 FROM annuity_basis WHERE matter_id=?', [$m['id']])) return null;
+    if (q1("SELECT 1 FROM events WHERE matter_id=? AND status IN ('open','proposed') AND type IN ('Maintenance Fee Due','Renewal','Annuity Due')", [$m['id']])) return null;
+    $at = strtolower((string)$m['app_type']); $d = preg_replace('/\D/', '', (string)$m['app_no']); $k = strlen($d) >= 12 ? $d[4] : '';
+    if (str_contains($at, 'design') || $k === '3') [$type, $last] = ['design', $filed >= '2021-06-01' ? 15 : 10];
+    elseif (str_contains($at, 'utility model') || $k === '2' || $k === '9') [$type, $last] = ['utility model', 10];
+    else [$type, $last] = ['invention patent', 20];
+    $n = 2; while ($n <= $last && (annuity_due('CN', $filed, $n) < today() || annuity_due('CN', $filed, $n) <= $granted)) $n++;
+    return $n > $last ? null : ['filed' => $filed, 'granted' => $granted, 'type' => $type, 'next' => $n, 'last' => $last];
+}
+/* Mexico, automatic (2026-10-15, after QUE010.MX): trademark registrations last 10 years and are renewed in the 6 months
+ *   before the term ends (6 months' grace after). The term counts from the FILING date for applications filed before 10 August 2018
+ *   (the certificate says so: "vigencia de diez años contados a partir de la fecha de presentación"), from the GRANT date for later
+ *   ones. Registrations granted from 10 August 2018 also need a Declaration of Use within the 3 months after the 3rd anniversary of
+ *   the grant. No patents here (none live). */
+const MX_TM_GRANT_TERM_FROM = '2018-08-10';
+function is_mexican(array $m): bool { return in_array(strtolower(trim((string)$m['country'])), ['mexico', 'mx'], true) || preg_match('/\.MX(\b|$)/i', (string)$m['ref']); }
+/** [term start, label] of a Mexican registration, or null when the date it counts from is missing. */
+function mx_tm_base(array $m): ?array {
+    $filed = substr((string)$m['filing_date'], 0, 10); $granted = substr((string)$m['grant_date'], 0, 10); $iso = '/^\d{4}-\d\d-\d\d$/';
+    if (!preg_match($iso, $filed)) return null;                     // without the filing date the rule can't be chosen
+    if ($filed < MX_TM_GRANT_TERM_FROM) return [$filed, 'filed'];
+    return preg_match($iso, $granted) ? [$granted, 'granted'] : null;
+}
+/** Expiry dates of a registration's 10-year terms counted from $base, oldest first, up to the first one after $until. */
+function tm_expiries(string $base, string $until, int $firstYears = 10): array {
+    $out = []; for ($x = add_months($base, $firstYears * 12, false); $x <= $until; $x = add_months($x, 120, false)) $out[] = $x; $out[] = $x; return $out;
+}
+/** Docket the next renewal of a live CA/MX registration: the first term end still renewable (up to 6 months after it) that is not
+ *  already renewed. A term whose renewal event is done (or proposed done) counts as renewed, so the NEXT term is docketed right away
+ *  (QUE010.MX: 2027 renewal filed 2026-10-13 → 2037 docketed). An open renewal event means it is already docketed. Returns what was added. */
+function tm_renewal_dock(array $m, bool $apply = true): array {
+    $mx = is_mexican($m); $cn = !$mx && is_chinese($m); $regNo = trim((string)$m['reg_no']);
+    if ($cn) { $base = substr((string)$m['grant_date'], 0, 10); $how = 'registered';
+        if ($regNo === '' || !preg_match('/^\d{4}-\d\d-\d\d$/', $base)) return [];
+        $exps = array_map(fn($x) => (new DateTimeImmutable($x))->modify('-1 day')->format('Y-m-d'), tm_expiries($base, add_months(today(), 121, false))); }
+    elseif ($mx) { $b = mx_tm_base($m); if (!$b || $regNo === '') return []; [$base, $how] = $b; $exps = tm_expiries($base, add_months(today(), 120, false)); }
+    else { $base = substr((string)$m['grant_date'], 0, 10); $how = 'registered';
+        if ($regNo === '' || !preg_match('/^\d{4}-\d\d-\d\d$/', $base)) return []; $exps = ca_tm_expiries($base, add_months(today(), 120, false)); }
+    $out = []; $cut = add_months(today(), -6, false);
+    $granted = substr((string)$m['grant_date'], 0, 10);
+    if ($mx && preg_match('/^\d{4}-\d\d-\d\d$/', $granted) && $granted >= MX_TM_GRANT_TERM_FROM) {   // one Declaration of Use, 3rd anniversary of the grant + 3 months
+        $dou = add_months($granted, 39, false);
+        if ($dou >= today() && !q1("SELECT 1 FROM events WHERE matter_id=? AND status<>'cancelled' AND type LIKE '%Declaration of Use%'", [$m['id']])) {
+            $note = 'Mexican registration ' . $regNo . ' granted ' . fmt_date($granted) . ': Declaration of Use due within 3 months after the 3rd anniversary';
+            if ($apply) { run('INSERT INTO events(matter_id,type,due_date,status,source,doc_code,note) VALUES (?,?,?,"open","rule","MX-USE",?)', [$m['id'], 'Declaration of Use Due', $dou, $note]); audit('rule', "$m[ref] Declaration of Use Due " . fmt_date($dou) . " ($note)", (int)$m['id']); }
+            $out[] = "Declaration of Use Due $dou";
+        }
+    }
+    foreach ($exps as $exp) {
+        if ($exp < $cut) continue;
+        $evs = q("SELECT status, COALESCE(done_at, proposed_at, '') closed FROM events WHERE matter_id=? AND status<>'cancelled' AND (type LIKE 'Renewal%' OR type LIKE '%Renewal Ends') AND due_date BETWEEN ? AND ?", [$m['id'], add_months($exp, -7, false), add_months($exp, 7, false)]);
+        if (in_array('open', array_column($evs, 'status'), true)) break;               // already docketed
+        // renewed: the next term. Only a renewal closed in the 12 months before the term ends counts (a renewal can't be filed earlier;
+        // XYZ003.CA's 2030 renewal was closed in DocketTrak in 2025, which is not a renewal)
+        if (array_filter($evs, fn($e) => $e['closed'] !== '' && substr($e['closed'], 0, 10) >= add_months($exp, $cn ? -13 : -12, false))) continue;
+        $label = $cn ? 'Chinese' : ($mx ? 'Mexican' : 'Canadian');
+        $note = "$label registration $regNo " . ($how === 'filed' ? 'filed ' : 'of ') . fmt_date($base) . ': term ends ' . fmt_date($exp);
+        $begins = $cn ? (new DateTimeImmutable(add_months($exp, -12, false)))->modify('+1 day')->format('Y-m-d') : add_months($exp, -6, false);
+        foreach ([['Renewal Period Begins', $begins], ['Renewal Period Ends', $exp]] as [$type, $due]) {
+            if ($apply) {
+                run('INSERT INTO events(matter_id,type,due_date,status,source,doc_code,note) VALUES (?,?,?,"open","rule",?,?)', [$m['id'], $type, $due, $cn ? 'CN-RENEWAL' : ($mx ? 'MX-RENEWAL' : 'CA-RENEWAL'), $note]);
+                audit('rule', "$m[ref] $type " . fmt_date($due) . " ($note)", (int)$m['id']);
+            }
+            $out[] = "$type $due";
+        }
+        break;
+    }
+    return $out;
+}
+/** Right after a Canadian record is created or its dates change: docket now rather than at night. Returns ' Annuity Due 2027-06-29, ...' or ''. */
+function ca_docket_now(int $matterId): string {
+    $m = q1('SELECT * FROM matters WHERE id=?', [$matterId]); if (!$m || (!is_canadian($m) && !is_mexican($m) && !is_chinese($m))) return '';
+    $out = []; foreach (auto_canada() as $r) if ($r['ref'] === $m['ref'] && !str_starts_with($r['what'], 'maintenance')) $out[] = $r['what'];
+    foreach (sync_annuities($matterId) as $e) $out[] = ANNUITY_EVENT . ' ' . $e['due'];
+    return $out ? ' ' . implode(', ', $out) : '';
 }

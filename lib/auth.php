@@ -32,9 +32,9 @@ function auth_sso(array $cfg): void {
     if (!empty($_SESSION['dk_user']) && !isset($cfg['users'][$_SESSION['dk_user']])) auth_logout();   // renamed/removed user
     if (!empty($_SESSION['dk_user'])) mail_signin($cfg, $_SESSION['dk_user']);   // sessions opened before the single sign-in get Mail too
 }
-// One sign-in for everything (2026-10-01): the Madder login also signs the attorney and staff into Mail + Locations, which read
+// One sign-in for everything (2026-10-01): the Pendant login also signs the attorney and staff into Mail + Locations, which read
 // the shared session's 'user' key (their Mail usernames, mail_users in config). the paralegal has no Mail account: any Mail sign-in
-// left in this browser is dropped, so she sees Madder only.
+// left in this browser is dropped, so she sees Pendant only.
 function mail_signin(array $cfg, string $u): void {
     $mu = array_search($u, $cfg['mail_users'] ?? [], true);
     if ($mu !== false) $_SESSION['user'] = (string)$mu; else unset($_SESSION['user']);
@@ -53,7 +53,7 @@ function auth_attempt(array $cfg, string $u, string $p): bool {
         if ($u !== '' && ($u === strtolower((string)($rec['login'] ?? '')) || $u === strtolower((string)($rec['email'] ?? '')) || $u === strtolower((string)$rec['name']) || $u === strtolower(explode(' ', (string)$rec['name'])[0]))) { $u = $k; break; }
     if (!isset($cfg['users'][$u])) return false;
     $rec = $cfg['users'][$u];
-    // 'hash' may be a list: every password the person already uses is accepted (staff, 2026-10-01: his Mail-page and Madder passwords).
+    // 'hash' may be a list: every password the person already uses is accepted (staff, 2026-10-01: his Mail-page and Pendant passwords).
     $ok = false;
     if (isset($rec['hash'])) { foreach ((array)$rec['hash'] as $h) if (password_verify($p, $h)) $ok = true; }
     else $ok = hash_equals((string)$rec['pass'], $p);

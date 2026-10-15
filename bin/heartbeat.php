@@ -15,5 +15,5 @@ $w = json_decode((string)setting('nightly_warnings', '[]'), true) ?: [];
 if (!$bad && $w) $bad[] = count($w) . ' PHP warning(s) during the nightly run: ' . implode('; ', array_slice($w, 0, 5));
 if (!$bad) { echo "heartbeat ok: nightly finished $today\n"; exit(0); }
 echo "HEARTBEAT: " . implode(' | ', $bad) . "\n";
-if (!isset($opt['dry']) && !empty($opt['email'])) echo "alarm to {$opt['email']}: " . madder_alarm((string)$opt['email'], $w && count($bad) === 1 && str_contains($bad[0], 'warning') ? 'the nightly job ran with warnings' : 'the nightly job did not finish', $bad) . "\n";
+if (!isset($opt['dry']) && !empty($opt['email'])) echo "alarm to {$opt['email']}: " . pendant_alarm((string)$opt['email'], $w && count($bad) === 1 && str_contains($bad[0], 'warning') ? 'the nightly job ran with warnings' : 'the nightly job did not finish', $bad) . "\n";
 exit(1);

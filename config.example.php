@@ -1,5 +1,5 @@
 <?php
-// Madder configuration. install.sh copies this to config.php (mode 600) and fills in the first admin.
+// Pendant configuration. install.sh copies this to config.php (mode 600) and fills in the first admin.
 // The firm itself (name, phones, domains, customer numbers, signing attorney ...) is in firm.php.
 date_default_timezone_set('America/New_York');   // the firm's clock: "today" must not flip at 8 pm
 return [

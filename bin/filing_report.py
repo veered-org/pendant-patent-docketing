@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""New filing (2026-10-02): read the receipts dropped on Madder's "New filing" page, and build the patent Filing Report letter
+"""New filing (2026-10-02): read the receipts dropped on Pendant's "New filing" page, and build the patent Filing Report letter
 on the firm's letterhead from the REL001 letter (templates/filing-report-letter.docx), keeping its formatting: centered underlined
 date, hanging Re:/Subject:/Appl. No.:/Our File No. block, justified body, bold+underlined section headings, underlined dates.
   filing_report.py parse FILE.pdf             -> JSON {kind: ack|payment|assignment|tm_receipt|unknown, ...}
@@ -142,8 +142,8 @@ def letter(base, out, f):
         if s.get('heading'): add(heading, s['heading'], True)
         add(body, s['text'], False)
     if spacer is not None: e = copy.deepcopy(spacer); anchor.addnext(e)
-    d.core_properties.author = os.environ.get('MADDER_ATTORNEY', 'Attorney')
-    for r in (r for p in d.paragraphs for r in p.runs if 'Attorney Name, Esq.' in r.text): r.text = r.text.replace('Attorney Name, Esq.', os.environ.get('MADDER_ATTORNEY') or 'Attorney Name, Esq.')   # packaged template's placeholder signer
+    d.core_properties.author = os.environ.get('PENDANT_ATTORNEY', 'Attorney')
+    for r in (r for p in d.paragraphs for r in p.runs if 'Attorney Name, Esq.' in r.text): r.text = r.text.replace('Attorney Name, Esq.', os.environ.get('PENDANT_ATTORNEY') or 'Attorney Name, Esq.')   # packaged template's placeholder signer
     d.save(out); dedupe_zip(out)
 
 def dedupe_zip(path):

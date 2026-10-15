@@ -40,12 +40,12 @@ function layout_top(string $title, ?string $flash = null): void {
               ['Advanced', [['queue', 'Confirm queue'], ['templates', 'Templates'], ['report', 'Report'], ['audit', 'Change Log'], ['inbox', 'USPTO mail'], ['dropbox', 'Dropbox']]]];
     $cur = $_GET['p'] ?? 'dash';
     $qc = (q1('SELECT count(*) c FROM events e JOIN matters m ON m.id=e.matter_id WHERE e.status="proposed" AND m.dead=0')['c'] ?? 0) + (q1('SELECT count(DISTINCT m.id) c FROM matters m JOIN events e ON e.matter_id=m.id AND e.status IN ("open","proposed") AND e.type<>? WHERE m.dead=1', [ABANDON_REPORT_EVENT])['c'] ?? 0);
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' · Madder</title>';
-    echo '<link rel="icon" type="image/png" href="madder-icon.png"><link rel="apple-touch-icon" href="madder-icon.png"><style>' . file_get_contents(__DIR__ . '/style.css') . '</style></head><body>';
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' · Pendant</title>';
+    echo '<link rel="icon" type="image/png" href="pendant-icon.png"><link rel="apple-touch-icon" href="pendant-icon.png"><style>' . file_get_contents(__DIR__ . '/style.css') . '</style></head><body>';
     $mail = rtrim((string)($cfg['mail_base'] ?? 'mail/'), '/') . '/';
     // Mail and Locations live in the Mail-lookup app; only logins that have an account there (mail_users map) get the links. the paralegal: Docket only.
     $hasMail = in_array($u, $cfg['mail_users'] ?? [], true);
-    echo '<header><div class="hrow"><div class="brand"><span class="mono">' . h(firm('initials')) . '</span> Madder</div><nav class="menu" aria-label="Private pages">' . ($hasMail ? '<a href="' . h($mail) . '">Mail</a>' : '') . '<a href="./" class="here">Madder</a>' . ($hasMail ? '<a href="' . h($mail) . 'visitors.php">Locations</a>' : '') . '</nav>';
+    echo '<header><div class="hrow"><div class="brand"><span class="mono">' . h(firm('initials')) . '</span> Pendant</div><nav class="menu" aria-label="Private pages">' . ($hasMail ? '<a href="' . h($mail) . '">Mail</a>' : '') . '<a href="./" class="here">Pendant</a>' . ($hasMail ? '<a href="' . h($mail) . 'visitors.php">Locations</a>' : '') . '</nav>';
     echo '<nav>';   // one line (wraps only when it does not fit): brand, apps, menu, search, who (2026-09-30)
     foreach ($nav as [$p, $l]) echo '<a href="' . url($p) . '"' . ($cur === $p ? ' class="on"' : '') . '>' . $l . ($p === 'queue' && $qc ? " <b class=\"cnt\">$qc</b>" : '') . '</a>';
     foreach ($menus as [$label, $items]) {
@@ -66,7 +66,7 @@ function layout_bottom(): void {
     // you elsewhere (ask_inactive, Send page) is followed. Any other button: the page reloads at the same scroll position.
     echo <<<'JS'
 <script>(function(){
-var K="madderScroll",here=location.pathname+location.search,
+var K="pendantScroll",here=location.pathname+location.search,
     INPLACE=/^(done_multi|confirm|confirm_group|reject|reject_group|cancel|reopen|wait_clear|rem_skip|discard_outbox|report_cancel|reg_reported|pub_reported|held_reopen|fee_paid_undo)$/;
 function toast(t){if(!t)return;var d=document.createElement("div");d.className="flash";d.textContent=t;d.style.cssText="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:999;max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.18)";document.body.appendChild(d);setTimeout(function(){d.remove();},6000);}
 document.addEventListener("submit",function(e){
@@ -97,7 +97,7 @@ if("scrollRestoration" in history)history.scrollRestoration="manual";scrollTo(0,
 var fl=document.querySelector(".flash");if(fl&&s.y>80){fl.style.cssText="position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:999;max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.18)";setTimeout(function(){fl.style.display="none";},6000);}
 })();</script>
 JS;
-    echo '</main><footer>Madder · ' . htmlspecialchars(firm('name')) . '</footer></body></html>';
+    echo '</main><footer>Pendant · ' . htmlspecialchars(firm('name')) . '</footer></body></html>';
 }
 function csrf_field(): string { return '<input type="hidden" name="csrf" value="' . csrf() . '">'; }
 function btn(string $action, array $data, string $label, string $cls = '', string $confirm = ''): string {
@@ -153,7 +153,7 @@ function event_actions(array $ev): string {
     if ($issueReport !== null && (string)($ev['mail_date'] ?? '') !== '' && function_exists('oa_report_actions') && !q1('SELECT 1 FROM events WHERE matter_id=? AND type IN (?,?)', [$ev['matter_id'], ISSUE_REPORT_EVENTS[0], ISSUE_REPORT_EVENTS[1]])) {
         $ntf = ['doc_code' => 'ISSUE.NTF'] + $ev; if (!oa_report_ready($ntf)) $o[] = oa_report_actions($ntf, here_uri());
     }
-    if ($issueReport === false) $o[] = '<button type="button" class="small ghost" disabled style="opacity:.45;cursor:not-allowed" title="The client email is prepared on the issue day (' . h(fmt_long((string)$ev['due_date'])) . '): Madder saves the certificate, writes the issuance letter and adds a &quot;' . h(ISSUANCE_REPORT_EVENT) . '&quot; to-do.">Too early to send</button>';
+    if ($issueReport === false) $o[] = '<button type="button" class="small ghost" disabled style="opacity:.45;cursor:not-allowed" title="The client email is prepared on the issue day (' . h(fmt_long((string)$ev['due_date'])) . '): Pendant saves the certificate, writes the issuance letter and adds a &quot;' . h(ISSUANCE_REPORT_EVENT) . '&quot; to-do.">Too early to send</button>';
     elseif ($issueReport) $o[] = '<a class="btn small gold" href="' . url('send', ['id' => $issueReport['id'], 'back' => here_uri()]) . '">Send report</a>';
     // Opposition period (2026-10-04): greyed until the period has ended (the day after its last day), then the "opposition period ended" report.
     if (($ev['type'] ?? '') === OPP_END_EVENT && in_array($ev['status'], ['open', 'proposed'], true) && auth_email() !== '')
@@ -233,7 +233,7 @@ function note_html(array $r): string {
     return implode(' | ', $out);
 }
 /** Serial / registration as shown on screen: US trademark numbers link to TSDR in a new window; patent numbers get commas. */
-/** Priority-claims box for a patent (ODP data in matters.priority_json). Numbers link to the Madder record when there is one. */
+/** Priority-claims box for a patent (ODP data in matters.priority_json). Numbers link to the Pendant record when there is one. */
 function priority_box(array $m): string {
     $p = json_decode((string)($m['priority_json'] ?? ''), true);
     $link = function (string $no) { $d = preg_replace('/\D/', '', $no); $mm = strlen($d) >= 8 ? q1("SELECT id, ref FROM matters WHERE kind='patent' AND replace(replace(replace(app_no,'/',''),',',''),' ','')=?", [$d]) : null;

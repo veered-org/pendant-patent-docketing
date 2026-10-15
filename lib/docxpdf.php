@@ -41,13 +41,13 @@ function folder_link(array $m): string {
  *  Explorer / Finder, built from the Dropbox location they type once (remembered in this browser). */
 function folder_link_script(): string {
     static $done = false; if ($done) return ''; $done = true;
-    return '<script>(function(){var K="madder_dropbox",kit=/Mac/i.test(navigator.platform)?"Mac":(/Win/i.test(navigator.platform)?"Windows":"");'
+    return '<script>(function(){var K="pendant_dropbox",kit=/Mac/i.test(navigator.platform)?"Mac":(/Win/i.test(navigator.platform)?"Windows":"");'
         . 'function get(){try{return localStorage.getItem(K)||"";}catch(e){return "";}}function put(v){try{localStorage.setItem(K,v);}catch(e){}}'
         . 'function esc(t){var d=document.createElement("div");d.textContent=t;return d.innerHTML;}'
         . 'var BS=String.fromCharCode(92);function full(root,rel){if(!root)return "";var w=root.indexOf(BS)>=0||kit==="Windows",sep=w?BS:"/";while(root.length>1&&(root.slice(-1)===BS||root.slice(-1)==="/"))root=root.slice(0,-1);return root+sep+rel.split("/").join(sep);}'
         . 'function show(a){var old=document.getElementById("fldbox");if(old)old.remove();var b=document.createElement("div");b.id="fldbox";b.className="box warnbox";'
         . 'b.style.cssText="position:absolute;z-index:50;max-width:560px;font-size:14px;font-weight:normal;margin-top:6px";var rel=a.dataset.rel;'
-        . 'b.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px\"><b>This computer can&rsquo;t open folders from Madder yet.</b><a href=\"#\" class=\"fldx\">close</a></div>"'
+        . 'b.innerHTML="<div style=\"display:flex;justify-content:space-between;gap:10px\"><b>This computer can&rsquo;t open folders from Pendant yet.</b><a href=\"#\" class=\"fldx\">close</a></div>"'
         . '+(kit?"<p style=\"margin:6px 0\">One-time setup: <a href=\""+' . json_encode(url('docxkit', [])) . '+"&os="+kit+"\">download the installer</a>, unzip it, run <b>Install on "+kit+"</b>. After that the file number opens the folder. <i>This installer has not been tested yet, though we expect it to work.</i></p>":"")'
         . '+"<p style=\"margin:6px 0\">Until then, your Dropbox folder on this computer: <input class=\"fldroot\" size=\"34\" placeholder=\""+(kit==="Windows"?["C:","Users","you","Dropbox"].join(BS):"/Users/you/Dropbox")+"\"></p>"'
         . '+"<p class=\"fldpath\" style=\"margin:6px 0\"></p>";'

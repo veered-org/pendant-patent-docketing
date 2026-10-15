@@ -37,7 +37,7 @@ function prep_py(string $args): string {
     return (string)shell_exec('python3 ' . escapeshellarg(dirname(__DIR__) . '/bin/prepare_filing.py') . ' ' . $args . ' 2>&1');
 }
 
-/** Where the /S/ signing page keeps its documents (the server: /private/docs beside /private/madder). '' = no links (laptop, tests). */
+/** Where the /S/ signing page keeps its documents (the server: /private/docs beside /private/pendant). '' = no links (laptop, tests). */
 function prep_esign_dir(): string {
     $d = (string)($GLOBALS['cfg']['esign_docs'] ?? dirname(__DIR__, 2) . '/docs');
     return is_dir($d) && is_file(dirname($d) . '/sign_pdf.py') ? $d : '';
@@ -78,7 +78,7 @@ function prep_kind(string $ref): string {
     return $m ? (string)$m['kind'] : ($f ? '' : 'nofolder');
 }
 
-/** The Patent Center fixers (Vermilion uspto-docx / uspto-pdf): beside Madder on the server (/patent-tools/bin), or the repo on the laptop. */
+/** The Patent Center fixers (Vermilion uspto-docx / uspto-pdf): beside Pendant on the server (/patent-tools/bin), or the repo on the laptop. */
 function prep_tools_dir(): string {
     foreach ([(string)($GLOBALS['cfg']['uspto_tools'] ?? ''), dirname(__DIR__, 3) . '/patent-tools/bin', getenv('HOME') . '/Projects/veered-public/vermilion-patent-pdf-tools/bin'] as $d)
         if ($d !== '' && is_file("$d/uspto-docx") && is_file("$d/uspto-pdf")) return $d;

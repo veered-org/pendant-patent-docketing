@@ -3,7 +3,7 @@
 Usage: claims_compare.py EGRANT.pdf CLM.xml [NOA.xml]   -> JSON {ok, granted_count, granted_independent, filed_count, diffs, examiner_amendment}
 A granted independent claim that differs from the last-filed claim still passes when the examiner wrote that exact claim out in full
 in an examiner's amendment in the Notice of Allowance (XYZ001). Amendments given as edit instructions (XYZ010) are left to a person.
-2026-10-02: the issuance letter says "the independent claim language ... has been checked for accuracy"; Madder checks it."""
+2026-10-02: the issuance letter says "the independent claim language ... has been checked for accuracy"; Pendant checks it."""
 import sys, re, json, difflib, unicodedata
 from pypdf import PdfReader
 

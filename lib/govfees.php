@@ -85,15 +85,15 @@ function govfee_check(): ?array {
     $bad = [];
     foreach (GOVFEE_MF_CODE as $yr => $code) {
         if (!preg_match('#' . preg_quote($code, '#') . ' .{0,200}?([\d,]+\.\d\d) ([\d,]+\.\d\d) ([\d,]+\.\d\d)#', $t, $x)) { $bad[] = "$code not found"; continue; }
-        $got = [$amt($x[1]), $amt($x[2]), $amt($x[3])]; if ($got !== GOVFEE_MF[$yr]) $bad[] = "$code now " . implode('/', $got) . ' (Madder has ' . implode('/', GOVFEE_MF[$yr]) . ')';
+        $got = [$amt($x[1]), $amt($x[2]), $amt($x[3])]; if ($got !== GOVFEE_MF[$yr]) $bad[] = "$code now " . implode('/', $got) . ' (Pendant has ' . implode('/', GOVFEE_MF[$yr]) . ')';
     }
     foreach (['1554/2554/3554', '1555/2555/3555', '1556/2556/3556'] as $code) {
         if (!preg_match('#' . preg_quote($code, '#') . ' .{0,200}?([\d,]+\.\d\d) ([\d,]+\.\d\d) ([\d,]+\.\d\d)#', $t, $x)) { $bad[] = "$code not found"; continue; }
-        $got = [$amt($x[1]), $amt($x[2]), $amt($x[3])]; if ($got !== GOVFEE_MF_LATE) $bad[] = "$code now " . implode('/', $got) . ' (Madder has ' . implode('/', GOVFEE_MF_LATE) . ')';
+        $got = [$amt($x[1]), $amt($x[2]), $amt($x[3])]; if ($got !== GOVFEE_MF_LATE) $bad[] = "$code now " . implode('/', $got) . ' (Pendant has ' . implode('/', GOVFEE_MF_LATE) . ')';
     }
     foreach (GOVFEE_TM as $code => $want) {
         if (!preg_match('#([\d,]+\.\d\d) ' . $code . '(?!,)\b#', $t, $x)) { $bad[] = "$code not found"; continue; }
-        if ($amt($x[1]) !== $want) $bad[] = "$code now " . $amt($x[1]) . " (Madder has $want)";
+        if ($amt($x[1]) !== $want) $bad[] = "$code now " . $amt($x[1]) . " (Pendant has $want)";
     }
     return $bad;
 }

@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/firm.php';
 /**
  * Ask client to sign trademark (2026-10-06, BOO001-BOO003). New filing > "Ask client to sign trademark": type the file numbers
- * (BOO001; BOO002; BOO003). Madder finds Trademark Center's "Trademark application MARK ready for review and signature - Docket number
+ * (BOO001; BOO002; BOO003). Pendant finds Trademark Center's "Trademark application MARK ready for review and signature - Docket number
  * REF" e-mail for each in Gmail, takes the review-and-sign link (never the "Use this link by <deadline>" date: the attorney takes it out),
  * and opens the send page with his signing email (his SKY029/SKY030 wording). One to-do on the first file number carries it; Send closes it.
  * No template row: the email is built here, so the nightly reminders never pick the to-do up.
@@ -86,7 +86,7 @@ function sign_links_for(int $eventId): ?array { sign_schema(); $r = q1('SELECT l
 
 /*
  * Statement of Use prepared (2026-10-08, XYZ060): on an open "Statement of Use ..." deadline the matter page offers
- * "Statement of Use prepared". Madder finds TEAS's "<attorney> requests you to e-sign the Trademark/Service Mark Allegation of Use
+ * "Statement of Use prepared". Pendant finds TEAS's "<attorney> requests you to e-sign the Trademark/Service Mark Allegation of Use
  * form for <serial>" e-mail, takes its sign.service link, and opens the send page with his signing email (his XYZ001/XYZ002 wording,
  * 2023-12-05) in the client's thread. A to-do carries it; Send closes it and notes the deadline. The deadline itself stays open
  * until the filing is seen.
@@ -148,7 +148,7 @@ function sou_sign_email(string $ref, array $l): array {
 
 /*
  * Declaration / renewal prepared (2026-10-14, XYZ001): on an open post-registration deadline (§8, §8 & 9, §8 & 15, §71,
- * §71 & 15, renewal, and their grace periods) the matter page offers "Send prepared declaration". Madder finds Trademark Center's
+ * §71 & 15, renewal, and their grace periods) the matter page offers "Send prepared declaration". Pendant finds Trademark Center's
  * "Trademark Combined Sections 8 & 9 Declaration of Use and Renewal MARK ready for review and signature - Docket number REF" e-mail
  * (newest wins: a corrected filing sends a new link), and opens the send page with the signing email (the SOU wording). A to-do
  * carries it; Send closes it and notes the deadline, which stays open until the filing is seen.

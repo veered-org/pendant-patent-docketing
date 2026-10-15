@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Madder installer: checks what the machine has, writes config.php + firm.php, creates the database and the first admin,
+# Pendant installer: checks what the machine has, writes config.php + firm.php, creates the database and the first admin,
 # seeds the client-email templates (unapproved), and prints the cron lines. Safe to re-run: nothing existing is overwritten.
 #
 #   ./install.sh            asks for the admin's username, name, e-mail and password
-#   ./install.sh --yes      non-interactive: MADDER_ADMIN_USER, MADDER_ADMIN_PASS (+ optional MADDER_ADMIN_NAME, MADDER_ADMIN_EMAIL)
+#   ./install.sh --yes      non-interactive: PENDANT_ADMIN_USER, PENDANT_ADMIN_PASS (+ optional PENDANT_ADMIN_NAME, PENDANT_ADMIN_EMAIL)
 set -euo pipefail
 cd "$(dirname "$0")"; ROOT="$(pwd)"
 YES=no; [ "${1:-}" = "--yes" ] && YES=yes
@@ -29,7 +29,7 @@ NEWCFG=no
 if [ -f config.php ]; then say "  config.php kept"; else cp config.example.php config.php; chmod 600 config.php; NEWCFG=yes; say "  config.php created"; fi
 
 if [ $NEWCFG = yes ]; then
-  if [ $YES = yes ]; then U="${MADDER_ADMIN_USER:?set MADDER_ADMIN_USER}"; PW="${MADDER_ADMIN_PASS:?set MADDER_ADMIN_PASS}"; N="${MADDER_ADMIN_NAME:-$U}"; E="${MADDER_ADMIN_EMAIL:-}"
+  if [ $YES = yes ]; then U="${PENDANT_ADMIN_USER:?set PENDANT_ADMIN_USER}"; PW="${PENDANT_ADMIN_PASS:?set PENDANT_ADMIN_PASS}"; N="${PENDANT_ADMIN_NAME:-$U}"; E="${PENDANT_ADMIN_EMAIL:-}"
   else
     read -rp "  admin username (lower case, e.g. jane): " U
     read -rp "  full name (as signed on letters): " N

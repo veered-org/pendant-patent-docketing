@@ -1,6 +1,6 @@
 <?php
 /**
- * IP origin gate. Copied 2026-10-01 from the Mail app (docket-mail/lib/geo.php) for Madder, which allows whole countries:
+ * IP origin gate. Copied 2026-10-01 from the Mail app (docket-mail/lib/geo.php) for Pendant, which allows whole countries:
  * USA and Israel only (2026-10-01), data/geo-us-il.db, cut from docket-mail's geoallow-countries.db.
  *
  * Deny by default: an address is allowed only if it appears in the always-allow

@@ -4,15 +4,15 @@ require_once __DIR__ . '/firm.php';
 /**
  * Patent Center downloads with Claude, supervised (2026-10-03). Unpublished applications are not in the Open Data Portal, so
  * oa_fetch.php marks their office actions 'manual'. the attorney or staff clicks "Download with Claude" (dashboard card: all; record page: one).
- * Madder works out the folder and the exact file names from its Dropbox index (next docket code, oa_fetch naming) and opens
- * madder-pc://run?d=<the request, base64url>. On a computer set up for it (the attorney: bin/pc_launch.sh; staff's Mac / Windows: the kit
- * in tools/madder-claude/) that opens a terminal with an ordinary interactive Claude session (--chrome) which the person watches and
+ * Pendant works out the folder and the exact file names from its Dropbox index (next docket code, oa_fetch naming) and opens
+ * pendant-pc://run?d=<the request, base64url>. On a computer set up for it (the attorney: bin/pc_launch.sh; staff's Mac / Windows: the kit
+ * in tools/pendant-claude/) that opens a terminal with an ordinary interactive Claude session (--chrome) which the person watches and
  * approves: it downloads each paper in their own signed-in browser and saves it into their synced Dropbox matter folder under the given
- * name. No server access is needed on that computer: Madder sees the file arrive through Dropbox (pc_reconcile) and marks the row saved.
+ * name. No server access is needed on that computer: Pendant sees the file arrive through Dropbox (pc_reconcile) and marks the row saved.
  * Patent Center refuses headless/scripted clients, and nothing here runs unattended.
  */
 const PC_DAYS = 60;       // office actions older than this are not offered
-const PC_BATCH = 8;       // documents per Claude session (keeps the madder-pc: link short enough for Windows)
+const PC_BATCH = 8;       // documents per Claude session (keeps the pendant-pc: link short enough for Windows)
 const PC_GIVE_UP_H = 24;  // a request with no file in Dropbox after this long is failed, so the button comes back
 
 function pc_schema(): void {
@@ -58,7 +58,7 @@ function pc_plan(array $corrIds, string $by): array {
     return $ids;
 }
 
-/** The request Claude reads (instructions + jobs), for the madder-pc: link. */
+/** The request Claude reads (instructions + jobs), for the pendant-pc: link. */
 function pc_request_text(array $reqIds, string $by): string {
     $rows = $reqIds ? q('SELECT r.*, m.ref, c.app_no, c.doc_code, c.mail_date FROM pc_requests r JOIN correspondence c ON c.id=r.correspondence_id JOIN matters m ON m.id=c.matter_id WHERE r.id IN (' . implode(',', array_map('intval', $reqIds)) . ') ORDER BY r.id') : [];
     $us = fn(string $iso) => substr($iso, 5, 2) . '/' . substr($iso, 8, 2) . '/' . substr($iso, 0, 4);
@@ -68,7 +68,7 @@ function pc_request_text(array $reqIds, string $by): string {
         . "   Folder: <matters>/{$r['folder']}" . ($r['note'] === 'no matter folder in Dropbox yet' ? '   (it does not exist yet: create it)' : '') . "\n"
         . "   Save the document as: {$r['action_base']}.pdf   (and {$r['action_base']}.docx if Patent Center offers it as DOCX/Word)\n"
         . "   A PTO-892 (Notice of References Cited) with the same mail room date, if any: {$r['ref892_base']}.pdf";
-    return "Madder request from $by, " . date('Y-m-d H:i') . " (" . firm('name') . " docket).\n\n"
+    return "Pendant request from $by, " . date('Y-m-d H:i') . " (" . firm('name') . " docket).\n\n"
         . "These USPTO papers are in unpublished applications, so only Patent Center has them. Download each one in this computer's browser (Claude in Chrome) and save it into the Dropbox matter folder under the exact name given. The person who clicked the button is watching.\n\n"
         . "Documents:\n" . implode("\n\n", $jobs) . "\n\n"
         . "How:\n"
@@ -78,23 +78,23 @@ function pc_request_text(array $reqIds, string $by): string {
         . "- Check each saved PDF really is a PDF (starts with %PDF) and not an error page. Never overwrite an existing file: if the name is taken, stop and tell me.\n"
         . "- If a document is not listed or will not download, skip it and tell me why.\n"
         . "- Only read and download. Never click anything that files, submits, pays, signs or changes anything in Patent Center. Close the tabs you opened when done.\n\n"
-        . "Finish with one line per document: the file(s) saved, or why not. Madder notices the files once Dropbox syncs (usually within minutes) and marks them saved.";
+        . "Finish with one line per document: the file(s) saved, or why not. Pendant notices the files once Dropbox syncs (usually within minutes) and marks them saved.";
 }
-/** The madder-pc: link carries only a one-time token; the launcher fetches the request text from Madder itself (a fixed address in
+/** The pendant-pc: link carries only a one-time token; the launcher fetches the request text from Pendant itself (a fixed address in
  *  the launcher), so a link made anywhere else cannot put its own instructions into a Claude session. Tokens last PC_TOKEN_H hours. */
 const PC_TOKEN_H = 2;
 function pc_link(array $reqIds, string $by): string {
     db()->exec("CREATE TABLE IF NOT EXISTS pc_tokens (token TEXT PRIMARY KEY, req_ids TEXT, by_user TEXT, created_at TEXT DEFAULT (datetime('now')), fetched_at TEXT)");
     $t = bin2hex(random_bytes(16));
     run('INSERT INTO pc_tokens(token,req_ids,by_user) VALUES (?,?,?)', [$t, implode(',', array_map('intval', $reqIds)), $by]);
-    return 'madder-pc://run?t=' . $t;
+    return 'pendant-pc://run?t=' . $t;
 }
 /** ?p=pc_req&t=TOKEN, before any session: the request text, or 404. */
 function pc_serve_request(string $token): void {
     header('Content-Type: text/plain; charset=utf-8'); header('Cache-Control: no-store');
     db()->exec("CREATE TABLE IF NOT EXISTS pc_tokens (token TEXT PRIMARY KEY, req_ids TEXT, by_user TEXT, created_at TEXT DEFAULT (datetime('now')), fetched_at TEXT)");
     $r = preg_match('/^[0-9a-f]{32}$/', $token) ? q1('SELECT * FROM pc_tokens WHERE token=? AND created_at > datetime("now", ?)', [$token, '-' . PC_TOKEN_H . ' hours']) : null;
-    if (!$r) { http_response_code(404); exit("This Madder link has expired. Click Download with Claude again.\n"); }
+    if (!$r) { http_response_code(404); exit("This Pendant link has expired. Click Download with Claude again.\n"); }
     run('UPDATE pc_tokens SET fetched_at=datetime("now") WHERE token=?', [$token]);
     exit(pc_request_text(array_map('intval', explode(',', (string)$r['req_ids'])), (string)$r['by_user']));
 }

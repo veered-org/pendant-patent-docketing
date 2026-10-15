@@ -4,7 +4,7 @@ require_once __DIR__ . '/firm.php';
 /**
  * The picture the firm's own web catalogs already hold for a matter (2026-10-14): a granted patent's figure
  * (catalogs/patent/patents.db figure_file) or a logo trademark's drawing (catalogs/trademark/trademarks.db image_file,
- * drawing code 2/3/5 only; word marks get none). Madder sits on the same server, so the files are read in place, nothing is
+ * drawing code 2/3/5 only; word marks get none). Pendant sits on the same server, so the files are read in place, nothing is
  * downloaded. Shown on the matter page and in the client report. Config `catalog_dir` overrides the location.
  */
 function catalog_dir(): string {

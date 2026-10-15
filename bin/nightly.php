@@ -41,7 +41,7 @@ try {
     $html = preg_replace('/(<h3[^>]*>)/', '<p style="margin:8px 0"><b>USPTO mail</b>: ' . $gl . '</p>$1', $html, 1);
     // Mail-lookup activity (sign-ins, searches, opens, refusals) rides on this report; the Mail page sends no e-mail of its own.
     $ml = null; if (!$smoke) { try { $ml = mail_lookup_section(); } catch (Throwable $e) { $ml = ['html' => '<p style="color:#b42318">Mail lookup activity could not be read: ' . htmlspecialchars($e->getMessage()) . '</p>', 'last_id' => null]; } }
-    if ($ml) $html = preg_replace('/(<p style="color:#999;font-size:12px;margin-top:20px">Madder)/', addcslashes($ml['html'], '\\$') . '$1', $html, 1);
+    if ($ml) $html = preg_replace('/(<p style="color:#999;font-size:12px;margin-top:20px">Pendant)/', addcslashes($ml['html'], '\\$') . '$1', $html, 1);
     $rdir = dirname($cfg['db']) . '/reports'; @mkdir($rdir, 0755, true); $file = "$rdir/" . today() . '.html'; file_put_contents($file, $html);
     run('INSERT OR REPLACE INTO settings(key,value) VALUES ("report_last", ?)', [today()]);
     run('INSERT OR REPLACE INTO settings(key,value) VALUES ("nightly_warnings", ?)', [json_encode($warnings)]);
@@ -49,13 +49,13 @@ try {
     echo "sweep: {$sweep['checked']} checked, " . count($sweep['proposed']) . " proposed, " . count($sweep['failed']) . " failed, {$sweep['unpublished']} unpublished; reminders: {$night['sent']} queued, {$night['held']} held, {$night['skipped']} skipped\nreport: $file\n";
     if ($warnings) echo count($warnings) . " warning(s): " . implode('; ', $warnings) . "\n";
     if ($smoke) { echo "smoke ok\n"; exit(0); }
-    if ($alarmTo !== '') { $res = madder_mail($alarmTo, 'Madder morning report ' . fmt_date(today()) . ($gmail['error'] || $warnings ? ' (with problems)' : ''), $html); echo "email to $alarmTo: $res\n";
+    if ($alarmTo !== '') { $res = pendant_mail($alarmTo, 'Pendant morning report ' . fmt_date(today()) . ($gmail['error'] || $warnings ? ' (with problems)' : ''), $html); echo "email to $alarmTo: $res\n";
         if ($res === 'sent' && !empty($ml['last_id'])) run('INSERT OR REPLACE INTO settings(key,value) VALUES ("maillookup_last_id", ?)', [(string)$ml['last_id']]); }
 } catch (Throwable $e) {
     $msg = get_class($e) . ': ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')';
     fwrite(STDERR, "NIGHTLY FAILED: $msg\n");
     if ($smoke) exit(1);
     try { audit('error', 'nightly failed: ' . $msg); } catch (Throwable $e2) {}
-    if ($alarmTo !== '') echo "alarm to $alarmTo: " . madder_alarm($alarmTo, 'the nightly job stopped part-way', [$msg, 'No morning report was written for ' . date('Y-m-d') . '.']) . "\n";
+    if ($alarmTo !== '') echo "alarm to $alarmTo: " . pendant_alarm($alarmTo, 'the nightly job stopped part-way', [$msg, 'No morning report was written for ' . date('Y-m-d') . '.']) . "\n";
     exit(1);
 }

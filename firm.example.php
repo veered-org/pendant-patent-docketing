@@ -31,5 +31,5 @@ return [
     'mail_ssh'      => '',
     'dropbox_roots'      => ['/Matters'],                // Dropbox folders holding the matter folders (<root>/<FILE NO.>)
     'dropbox_write_root' => '',
-    'dropbox_forbidden'  => [],                          // top-level Dropbox folders Madder must never touch
+    'dropbox_forbidden'  => [],                          // top-level Dropbox folders Pendant must never touch
 ];

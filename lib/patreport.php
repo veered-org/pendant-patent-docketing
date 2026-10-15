@@ -117,7 +117,7 @@ function pat_card(array $r): string {
     elseif ($r['state'] === 'byhand') $how = h(preg_replace('/^.*\|\s*/', '', (string)$todo['note']) ?: 'Marked reported');
     $acts = '';
     if ($r['state'] === 'tosend') $acts = '<a class="btn gold" href="' . h(url('send', ['id' => $todo['id'], 'back' => $back])) . '">Preview &amp; send</a> '
-        . btn('reg_reported', ['id' => $todo['id'], 'back' => $back], 'Already reported', 'small ghost', 'Mark the ' . $r['ref'] . ' patent issuance report as already sent to the client (outside Madder)?');
+        . btn('reg_reported', ['id' => $todo['id'], 'back' => $back], 'Already reported', 'small ghost', 'Mark the ' . $r['ref'] . ' patent issuance report as already sent to the client (outside Pendant)?');
     elseif ($r['state'] === 'sent') $acts = '<a class="btn small ghost" href="' . h(url('send', ['id' => $todo['id'], 'ob' => $r['sent']['id'], 'back' => $back])) . '">View email</a>';
     $digits = preg_replace('/[^\dD]/i', '', $pn);
     return '<article class="pub-card ' . $r['state'] . '">'
@@ -129,7 +129,7 @@ function pat_card(array $r): string {
         . '<p class="pub-says"><span>The email tells the client</span>' . h($says) . ' eGrant and issuance letter attached; no invoice.</p>'
         . '<div class="pub-foot">' . ($how !== '' ? '<span class="pub-how">' . $how . '</span>' : '') . '<span class="pub-acts">' . $acts . '</span></div></article>';
 }
-/** The patent issuance report already went to the client outside Madder: a firm address to someone outside, about this patent, on or after the issue date. */
+/** The patent issuance report already went to the client outside Pendant: a firm address to someone outside, about this patent, on or after the issue date. */
 function pat_found_in_gmail(array $m, string $issued): ?array {
     if (!function_exists('gmail_cfg') || !($c = gmail_cfg())) return null;
     $ref = trim((string)$m['ref']); if (!preg_match('/^[A-Z0-9.\-]{3,}$/i', $ref)) return null;

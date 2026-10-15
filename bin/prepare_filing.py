@@ -17,7 +17,7 @@ Filled forms are flat (values stamped as page content, widgets removed, checkbox
 e-signature page and Patent Center alike; fonts embedded with Ghostscript when it is there."""
 import sys, re, json, io, os, copy, subprocess, shutil
 
-CUSTOMER_NO = os.environ.get('MADDER_CUSTOMER_NO', '')   # lib/firm.php: the firm's first customer number
+CUSTOMER_NO = os.environ.get('PENDANT_CUSTOMER_NO', '')   # lib/firm.php: the firm's first customer number
 SIGN_FIELDS = {'declaration': ('Text4', 'Date Optional'), 'poa82b': ('Signature of the applicant for patent', 'Date Optional_2'),
                'poa80': ('Signature', 'Date'), 'micro': ('Signature', 'Date'), 's373c': ('Text13', 'Date')}
 FORM_FILES = {'declaration': ('aia0001.pdf', [0]), 'poa82b': ('aia0082.pdf', [1]), 'poa80': ('aia0080.pdf', [0]), 'micro': ('sb0015a.pdf', [0]), 's373c': ('aia0096.pdf', [0, 1])}

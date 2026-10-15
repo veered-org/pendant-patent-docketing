@@ -106,8 +106,8 @@ def fill(base, out, f):
                 if r.text == '.  ' and 'window to pay the first' in mf.text and 'We have docketed' not in mf.text: r.text = '.  We have docketed to send you a reminder at that time.  '
     p = find(lambda t: re.search(r'-\d*[a-z]?-?Issuance Report\.doc|Issuance Report\.doc', t))
     if p: put(p, f['filename'], first_text_run(p))
-    d.core_properties.author = os.environ.get('MADDER_ATTORNEY', 'Attorney')
-    for r in (r for p in d.paragraphs for r in p.runs if 'Attorney Name, Esq.' in r.text): r.text = r.text.replace('Attorney Name, Esq.', os.environ.get('MADDER_ATTORNEY') or 'Attorney Name, Esq.')   # packaged template's placeholder signer
+    d.core_properties.author = os.environ.get('PENDANT_ATTORNEY', 'Attorney')
+    for r in (r for p in d.paragraphs for r in p.runs if 'Attorney Name, Esq.' in r.text): r.text = r.text.replace('Attorney Name, Esq.', os.environ.get('PENDANT_ATTORNEY') or 'Attorney Name, Esq.')   # packaged template's placeholder signer
     d.save(out); dedupe_zip(out)
 
 def address(path):

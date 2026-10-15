@@ -14,7 +14,7 @@ require_once __DIR__ . '/firm.php';
  *                      TSDR has not given yet, and closes a report the client already got by hand from Gmail (the paralegal drafts, staff sends).
  */
 const PUB_REPORT = 'Report Notice of Publication';
-const PUB_SINCE = '2026-09-01';   // older notices were reported before Madder existed: never backfilled
+const PUB_SINCE = '2026-09-01';   // older notices were reported before Pendant existed: never backfilled
 
 /** [key, short label, css class] for the basis at filing ($filed) and now ($curr), both DocketTrak style ("1a", "1b", "1a, 1b", "44e", "66a"). */
 function pub_story(string $curr, string $filed): array {
@@ -96,7 +96,7 @@ function pub_card(array $r): string {
     $acts = '';
     if ($r['state'] === 'tosend') {
         $acts = '<a class="btn gold" href="' . h(url('send', ['id' => $todo['id'], 'back' => $back])) . '">Preview &amp; send</a> '
-              . btn('pub_reported', ['id' => $todo['id'], 'back' => $back], 'Already reported', 'small ghost', 'Mark the ' . $r['ref'] . ' publication report as already sent to the client (outside Madder)?');
+              . btn('pub_reported', ['id' => $todo['id'], 'back' => $back], 'Already reported', 'small ghost', 'Mark the ' . $r['ref'] . ' publication report as already sent to the client (outside Pendant)?');
     } elseif ($r['state'] === 'none') $acts = btn('pub_queue', ['matter_id' => $r['id'], 'cid' => $r['cid'], 'back' => $back], 'Queue the client email', 'small');
     elseif (in_array($r['state'], ['sent', 'byhand'], true) && $r['sent']) $acts = '<a class="btn small ghost" href="' . h(url('send', ['id' => $todo['id'], 'ob' => $r['sent']['id'], 'back' => $back])) . '">View email</a>';
     $sn = preg_replace('/\D/', '', (string)$r['app_no']);
@@ -124,7 +124,7 @@ function pub_queue_for(array $m, array $c): ?int {
     $gid = (string)($c['gmail_id'] ?? '');
     return queue_notice_report($m, 'NOTICE OF PUBLICATION', (string)$c['mail_date'], $gid);
 }
-/** A report the client already got outside Madder: a firm address wrote to someone outside, about this file, with the publication wording. */
+/** A report the client already got outside Pendant: a firm address wrote to someone outside, about this file, with the publication wording. */
 function pub_found_in_gmail(array $m, string $pubDate): ?array {
     if (!function_exists('gmail_cfg') || !($c = gmail_cfg())) return null;
     $ref = trim((string)$m['ref']); if (!preg_match('/^[A-Z0-9.\-]{3,}$/i', $ref)) return null;

@@ -133,7 +133,7 @@ function prepare_issuance(array $m): string {
 /** 2026-10-06 (XYZ017, XYZ001): once the patent has issued and its "Report Patent Issuance" to-do exists, the Expected Issue Date
  *  is answered - close it so the file shows once under "overdue / today". */
 function close_expected_issue(int $matterId, string $issued): void {
-    run('UPDATE events SET status="done", done_by="madder", done_at=datetime("now"), note=note_add(note, ?) WHERE matter_id=? AND type="Expected Issue Date" AND status IN ("open","proposed")',
+    run('UPDATE events SET status="done", done_by="pendant", done_at=datetime("now"), note=note_add(note, ?) WHERE matter_id=? AND type="Expected Issue Date" AND status IN ("open","proposed")',
         ['issued ' . $issued . '; see the ' . ISSUANCE_REPORT_EVENT . ' to-do', $matterId]);
 }
 /** Hourly: US patents that issued in the last ISSUANCE_LOOKBACK_DAYS with no issuance to-do yet. */

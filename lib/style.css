@@ -47,8 +47,8 @@ details.adv .advmenu{position:absolute;top:100%;left:0;z-index:50;margin-top:4px
 @media(min-width:1800px){main,footer{zoom:1.12}}@media(min-width:2000px){main,footer{zoom:1.25}}@media(min-width:2200px){main,footer{zoom:1.37}}@media(min-width:2500px){main,footer{zoom:1.56}}@media(min-width:2800px){main,footer{zoom:1.75}}@media(min-width:3200px){main,footer{zoom:2}}@media(min-width:3600px){main,footer{zoom:2.25}}
 details.chlog{margin:24px 0 8px}details.chlog>summary h2{margin:0;color:#6b7a99}details.chlog table{background:#fbfaf7}details.chlog td{color:#7a8190}details.chlog th{color:#9aa0ab}
 .actcorner{float:right;margin:0 0 6px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:60%}
-.card.madder{grid-column:-2/-1;grid-row:1;position:relative;padding:0;overflow:hidden;background:#fff;min-height:64px}.card.madder img{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:contain;display:block}
-.login-madder{display:block;width:140px;height:140px;margin:0 auto 6px}
+.card.pendant{grid-column:-2/-1;grid-row:1;position:relative;padding:0;overflow:hidden;background:#fff;min-height:64px}.card.pendant img{position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:contain;display:block}
+.login-pendant{display:block;width:140px;height:140px;margin:0 auto 6px}
 th.file,td.file{width:calc(17ch + 20px);max-width:calc(17ch + 20px);white-space:normal;overflow-wrap:anywhere}   /* 2026-10-01: FILE column fits 15 bold characters (17ch of the normal face + 20px padding, measured); longer file numbers wrap */
 /* 2026-10-04: the papers line ("saved to Dropbox: <long file names>") in the actions cell made it ~1100px wide and squeezed FILE/MATTER/NOTE
    into slivers. The state line now wraps under a capped width; the buttons stay on one line; FILE keeps its 17ch. */

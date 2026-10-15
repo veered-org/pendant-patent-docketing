@@ -100,7 +100,7 @@ def fill(base, out, f):
         a = find('Again, congratulations.'); np_ = copy.deepcopy(a._p); a._p.addprevious(np_)
         from docx.text.paragraph import Paragraph
         set_text(Paragraph(np_, a._parent), f['portfolio_note'])
-    for r in (r for p in d.paragraphs for r in p.runs if 'Attorney Name, Esq.' in r.text): r.text = r.text.replace('Attorney Name, Esq.', os.environ.get('MADDER_ATTORNEY') or 'Attorney Name, Esq.')   # packaged template's placeholder signer
+    for r in (r for p in d.paragraphs for r in p.runs if 'Attorney Name, Esq.' in r.text): r.text = r.text.replace('Attorney Name, Esq.', os.environ.get('PENDANT_ATTORNEY') or 'Attorney Name, Esq.')   # packaged template's placeholder signer
     d.save(out)
 
 if __name__ == '__main__':

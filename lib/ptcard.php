@@ -6,7 +6,7 @@ require_once __DIR__ . '/firm.php';
  * make one for patents now?"). Same navy/gold, email-safe tables as the trademark card (lib/tmtimeline.php).
  *
  *  - pt_milestones()  the application's road. Exact dates from the USPTO Open Data Portal history (published applications and patents) and
- *                     from the papers Madder docketed itself (correspondence: unpublished applications); later steps are "about Month YYYY"
+ *                     from the papers Pendant docketed itself (correspondence: unpublished applications); later steps are "about Month YYYY"
  *                     estimates from USPTO pendency. A provisional shows its 12-month non-provisional / foreign-filing deadline and the date
  *                     to contact us (four months before). A granted patent shows its maintenance fees (utility) and its expiry.
  *  - pt_card()        the card itself; shown read-only on the send page and stored in outbox.card_html.
@@ -67,7 +67,7 @@ function pt_milestones(array $m): array {
         }
         return pt_mark_here($S, $grant, $t);
     }
-    // Dates the application reached, from ODP's history, else the papers Madder docketed.
+    // Dates the application reached, from ODP's history, else the papers Pendant docketed.
     $hd = function (array $codes, bool $first = true) use ($hist): string { $d = array_values(array_filter(array_map(fn($h) => in_array($h['code'], $codes, true) ? substr((string)$h['date'], 0, 10) : '', $hist))); if (!$d) return ''; sort($d); return $first ? $d[0] : end($d); };
     $cd = function (array $codes, bool $first = true) use ($m): string {
         if (empty($m['id'])) return ''; $ph = implode(',', array_fill(0, count($codes), '?'));
@@ -92,7 +92,9 @@ function pt_milestones(array $m): array {
         }
         $S[] = ['Allowance', $noa !== '' ? $exact($noa) : ($fa !== '' ? 'upon Examiner agreement' : ''), $noa !== '' ? 'done' : 'ahead', $noa !== '' ? 'Notice of Allowance' : ''];
         $est = $noa !== '' ? add_months($noa, 3, false) : ($filed !== '' ? add_months($filed, (int)round($P[$k . '_total']), false) : '');
-        $S[] = ['Granted', $est === '' ? '' : ($noa === '' && $est < $t ? 'after allowance' : $about($est)), 'ahead', 'patent issues'];
+        // 2026-10-15: once the Issue Notification is in, "Granted" shows its issue date ("expected Oct 27, 2026")
+        if ($iss = pt_issue_expected($m, $hist)) $S[] = ['Granted', ($iss['date'] < $t ? '' : 'expected ') . $exact($iss['date']), $iss['date'] <= $t ? 'done' : 'ahead', $iss['patent'] !== '' ? 'U.S. Patent ' . pt_fmt_patent($iss['patent']) : 'issue notification received'];
+        else $S[] = ['Granted', $est === '' ? '' : ($noa === '' && $est < $t ? 'after allowance' : $about($est)), 'ahead', 'patent issues'];
         return pt_mark_here($S, $grant, $t);
     }
     // Granted: Filed, Granted, then maintenance fees (utility) and the expiry.
@@ -175,4 +177,17 @@ function pt_card(array $m, ?array $ev, string $headline = ''): string {
         . ($n ? '<tr><td style="padding:13px 10px 8px;background:#fff;border-top:1px solid ' . $L . '"><table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;table-layout:fixed">' . $tl . '</table></td></tr>' : '')
         . '<tr><td style="padding:6px 18px 8px;background:#fff;border-top:1px solid #f0ece3;font-size:11px;line-height:1.4">' . $foot . '</td></tr>'
         . '</table>';
+}
+
+/** The issue date announced by the Issue Notification, before the grant is on record: ['date', 'patent'] or null. From Pendant's issuance
+ *  to-do (its mail_date is the issue date), else the notification's mail date (ODP history or Pendant's correspondence) -> issue_tuesday(). */
+function pt_issue_expected(array $m, array $hist): ?array {
+    $pat = preg_replace('/[^0-9A-Za-z]/', '', (string)($m['issue_patent_no'] ?? ''));
+    if (!empty($m['id']) && defined('ISSUE_REPORT_EVENTS')) {
+        try { $e = q1('SELECT mail_date FROM events WHERE matter_id=? AND type IN (?,?) AND status<>"cancelled" AND mail_date IS NOT NULL AND mail_date<>"" ORDER BY id DESC LIMIT 1', [(int)$m['id'], ISSUE_REPORT_EVENTS[0], ISSUE_REPORT_EVENTS[1]]); } catch (Throwable $x) { $e = null; }
+        if ($e && preg_match('/^\d{4}-\d\d-\d\d/', (string)$e['mail_date'])) return ['date' => substr((string)$e['mail_date'], 0, 10), 'patent' => $pat];
+    }
+    $d = ''; foreach ($hist as $h) if (in_array($h['code'] ?? '', ['ISSUE.NTF', 'EISSUE.NTF'], true) && substr((string)$h['date'], 0, 10) > $d) $d = substr((string)$h['date'], 0, 10);
+    if ($d === '' && !empty($m['id'])) { try { $d = substr((string)(q1('SELECT max(mail_date) d FROM correspondence WHERE matter_id=? AND doc_code IN ("ISSUE.NTF","EISSUE.NTF")', [(int)$m['id']])['d'] ?? ''), 0, 10); } catch (Throwable $x) { $d = ''; } }
+    return $d !== '' && function_exists('issue_tuesday') ? ['date' => issue_tuesday($d), 'patent' => $pat] : null;
 }

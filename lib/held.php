@@ -8,7 +8,7 @@ require_once __DIR__ . '/firm.php';
  *   receipt   a filing receipt: TEAS / Trademark Center "Received Your ..." or a Maintenance Fee Storefront payment. The filed papers are
  *             saved into the matter folder (bin/oa_fetch.php, from TSDR / the e-mail's attachment), the deadline they satisfy is PROPOSED
  *             done, and a "Report ..." client email is queued for the attorney to check and send ("plain old acceptance of something: save in
- *             file, email to report to client which will be in Madder for me to verify").
+ *             file, email to report to client which will be in Pendant for me to verify").
  *   ignored   USPTO workflow and bulk mail that needs nothing: e-signature requests, "ready for review/payment", surveys, newsletters
  *   held      anything else (an examiner's e-mail, assignments, ESTTA receipts, account notices ...): kept in uspto_held, shown on the
  *             USPTO mail page and in the morning report until someone marks it handled.
@@ -162,7 +162,7 @@ function recordation_details(string $text): array {
 }
 /**
  * Did someone at the firm already email the client about this, by hand, on or after $since? (2026-10-03: XYZ064 and XYZ004 were reported
- * by the attorney the morning the receipts came, so Madder's own report would have been a second email.) A sent message whose subject names
+ * by the attorney the morning the receipts came, so Pendant's own report would have been a second email.) A sent message whose subject names
  * the file number, to someone outside the firm, that reads like a report. Returns ['date', 'subject'] or null; null too when Gmail is
  * not reachable (the to-do then stays, and the Send page shows what was already emailed).
  */
@@ -253,7 +253,7 @@ function email_change_tasks(array $p, string $received, bool $apply = true): arr
     if ($p['email'] !== '' && firm_address($p['email'])) return ['email moved to ' . $p['email'] . ' (ours): nothing to do'];
     foreach ($p['numbers'] as $n) {
         $m = find_matter(['kind' => 'trademark', 'app_no' => $n, 'docket' => '']);
-        if (!$m) { $out[] = "$n: no matching trademark in Madder"; continue; }
+        if (!$m) { $out[] = "$n: no matching trademark in Pendant"; continue; }
         if ($m['dead']) { $out[] = "$m[ref]: already inactive"; continue; }
         $why = 'USPTO notice of ' . substr($received, 0, 10) . ': correspondence email changed to ' . ($p['email'] ?: '(address not given)') . '. Mark the matter inactive and take it off the docket?';
         $open = q1('SELECT * FROM events WHERE matter_id=? AND type=? AND status IN ("open","proposed")', [$m['id'], EMAIL_CHANGE_EVENT]);

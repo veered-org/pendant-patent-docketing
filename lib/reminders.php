@@ -24,6 +24,19 @@ function tpl_type(string $type, string $appNo): string {
     return preg_match('/^35\d{6}$/', $d) ? HAGUE_NOA_TEMPLATE : (preg_match('/^(29|30)\d{6}$/', $d) ? DESIGN_NOA_TEMPLATE : $type);
 }
 function tpl_for(array $tpls, string $type, string $appNo): ?array { return $tpls[tpl_type($type, $appNo)] ?? $tpls[$type] ?? null; }
+/* 2026-10-15: foreign renewals come round once in 5-10+ years, so he reminds clients very early: 12, 6, 3 and 1 month(s)
+ * before the deadline, whatever the shared template says (US registrations keep their own schedule). A "Renewal Period Ends" has its
+ * "Renewal Period Begins" email 6 months before, so it skips its own 6-month one. */
+const FOREIGN_RENEWAL_LEADS = ['Renewal' => '365,180,90,30', 'Renewal Period Ends' => '365,90,30'];
+/** The lead days that apply to this event: the template's, or FOREIGN_RENEWAL_LEADS for a non-US renewal deadline. */
+function event_leads(array $t, array $ev): array {
+    $ld = (string)$t['lead_days'];
+    if (isset(FOREIGN_RENEWAL_LEADS[(string)($ev['type'] ?? '')])) {
+        $c = array_key_exists('country', $ev) ? (string)$ev['country'] : (string)(q1('SELECT country FROM matters WHERE id=?', [(int)($ev['matter_id'] ?? 0)])['country'] ?? 'US');
+        if (!in_array(strtolower(trim($c)), ['', 'us', 'usa', 'united states'], true)) $ld = FOREIGN_RENEWAL_LEADS[(string)$ev['type']];
+    }
+    return array_map('intval', array_filter(array_map('trim', explode(',', $ld)), 'strlen'));
+}
 function money(string $n): string { return $n === '' || !is_numeric($n) ? $n : '$' . number_format((float)$n, ((float)$n == floor((float)$n)) ? 0 : 2); }
 /** "Government fee: $860; our fee: $500; total: $1,360 (small entity)" from a template's fee fields; '' when no fee is set. */
 function fee_line(?array $t): string {
@@ -462,7 +475,7 @@ const GOODS_INDENT = '';   // the indent is now CSS on the <sm> block (mail_body
 function goods_block(string $goods): array {
     // Numbered classes, plus certification (A goods / B services) and collective membership (200) marks.
     $cls = []; foreach (preg_split('/\R/', trim($goods)) as $l) if (preg_match('/^\s*(\d{1,3}|[AB])\s*-\s*(.+)$/', $l, $mm)) $cls[$mm[1]] = trim($mm[2]);
-    if (!$cls) return ['goods', '[goods/services are not on file in Madder: copy them from TSDR]'];
+    if (!$cls) return ['goods', '[goods/services are not on file in Pendant: copy them from TSDR]'];
     $svc = count(array_filter(array_keys($cls), fn($c) => $c === 'B' || (ctype_digit((string)$c) && (int)$c >= 35 && (int)$c < 100))); $word = $svc === 0 ? 'goods' : ($svc === count($cls) ? 'services' : 'goods and services');
     // "Class 009: goods" on one line; the lead-in sentence says "(at least one for each class)" (2026-09-29).
     // 2026-09-30: indented, "Class 035:" bold, the goods/services in italics. <sm>: smaller type, indented block.
@@ -476,7 +489,7 @@ function goods_inline(string $goods): string {
         elseif (preg_match('/^[A-Z][a-z]/', $g)) $g = lcfirst($g);
         $out[] = $g;
     }
-    return $out ? implode('; ', $out) : '[goods/services are not on file in Madder: copy them from TSDR]';
+    return $out ? implode('; ', $out) : '[goods/services are not on file in Pendant: copy them from TSDR]';
 }
 function grace_fields(array $ev, array $m): array {
     $mid = !empty($ev['matter_id']) ? (int)$ev['matter_id'] : null; $graceEnd = (string)$ev['due_date'];
@@ -512,7 +525,7 @@ function reminder_plan(array $ev): string {
     if (!array_key_exists($mk, $mail)) $mail[$mk] = client_recipients(q1('SELECT * FROM clients WHERE code=?', [$code]) ?: [], (string)($ev['kind'] ?? ''), (int)($ev['matter_id'] ?? 0));
     $rows = []; foreach (q('SELECT lead, status FROM reminders WHERE event_id=?', [$ev['id']]) as $r) $rows[(int)$r['lead']] = $r['status'];
     $today = today(); $out = [];
-    foreach (array_map('intval', explode(',', $t['lead_days'])) as $lead) {
+    foreach (event_leads($t, $ev) as $lead) {
         $fire = reminder_fire($ev['due_date'], $lead, $ev['type'], (int)($ev['matter_id'] ?? 0) ?: null); $lbl = ($lead === GRACE_LEAD && is_grace_email_type($ev['type']) ? 'grace period starts' : ($lead > 0 ? $lead . '-day' : 'on the day')) . ' ' . fmt_date($fire) . ': ';
         if (isset($rows[$lead]))  $out[] = $lbl . (['pending' => 'waiting for Send', 'held' => '<span class="bad">held</span>', 'sent' => 'sent', 'skipped' => 'skipped', 'draft' => 'Gmail draft'][$rows[$lead]] ?? h($rows[$lead]));
         elseif ($fire > $today)   $out[] = $lbl . 'scheduled';
@@ -534,7 +547,7 @@ function dash_date(array $ev, array $tpls): string {
     $t = tpl_for($tpls, (string)$ev['type'], (string)($ev['app_no'] ?? '')); if (!$t) return $ev['due_date'];
     $done = []; foreach (q('SELECT lead FROM reminders WHERE event_id=? AND status IN ("sent","draft","skipped")', [$ev['id']]) as $r) $done[(int)$r['lead']] = true;
     $best = null;
-    foreach (array_map('intval', array_filter(array_map('trim', explode(',', (string)$t['lead_days'])), 'strlen')) as $lead) {
+    foreach (event_leads($t, $ev) as $lead) {
         if (isset($done[$lead])) continue;
         $fire = reminder_fire($ev['due_date'], $lead, $ev['type'], (int)($ev['matter_id'] ?? 0) ?: null);
         if ($best === null || $fire < $best) $best = $fire;
@@ -606,7 +619,7 @@ function run_nightly(): array {
         if ($ev['type'] === 'Remind Client' && function_exists('is_pending_us_tm_app') && (!remind_target($ev) || is_pending_us_tm_app($ev))) { $stats['skipped']++; continue; }
         $stats['checked']++;
         $client = q1('SELECT * FROM clients WHERE code=?', [$ev['client_code']]) ?: ['code' => $ev['client_code'], 'name' => '', 'email' => ''];
-        foreach ($isAbn ? [0] : array_map('intval', explode(',', $t['lead_days'])) as $lead) {
+        foreach ($isAbn ? [0] : event_leads($t, $ev) as $lead) {
             $fire = reminder_fire($ev['due_date'], $lead, $ev['type'], (int)($ev['matter_id'] ?? 0) ?: null);
             if ($fire > $today) continue;                                   // not yet
             if (q1('SELECT id FROM reminders WHERE event_id=? AND lead=?', [$ev['id'], $lead])) continue;   // already handled
@@ -741,7 +754,7 @@ function build_report(array $sweep, array $nightly, string $base, ?array $horizo
     $prop = q("$E WHERE e.status='proposed' ORDER BY e.due_date");
     $pend = q('SELECT r.*, m.ref, m.id mid, e.type, e.due_date FROM reminders r JOIN events e ON e.id=r.event_id JOIN matters m ON m.id=e.matter_id WHERE r.status="pending" ORDER BY e.due_date');
     $evrow = fn($e) => ['<a href="' . $base . '?p=matter&id=' . $e['mid'] . '">' . $h($e['ref']) . '</a>', $h($e['type']), fmt_date($e['due_date']), $h($e['note'])];
-    $o = '<div style="font-family:Lexend,Segoe UI,sans-serif;color:#1e2430;max-width:900px"><h2 style="color:#1b2a49;margin:0 0 4px">Madder morning report · ' . fmt_date($t) . '</h2>';
+    $o = '<div style="font-family:Lexend,Segoe UI,sans-serif;color:#1e2430;max-width:900px"><h2 style="color:#1b2a49;margin:0 0 4px">Pendant morning report · ' . fmt_date($t) . '</h2>';
     $o .= '<p style="color:#666;margin:0 0 12px">Review for accuracy. Nothing below was closed or sent automatically.</p>';
     if (function_exists('untransmitted') && ($un = untransmitted())) $o .= $sec('<span style="color:#b3261e">Emails NOT sent (' . count($un) . ')</span>', $table(array_map(fn($x) => ['<a href="' . $base . '?p=dash&show=unsent">' . $h($x['ref']) . '</a>', $h(substr((string)$x['created_at'], 0, 16)), $h($x['to_email']), $h($x['transmit_error'] ?: 'not transmitted')], $un), ['File', 'Clicked', 'To', 'Problem']));
     if (function_exists('held_open') && ($hl = held_open())) $o .= $sec('<span style="color:#b3261e">USPTO email to read (' . count($hl) . ')</span>', $table(array_map(fn($x) => [$h($x['received']), '<a href="' . $base . '?p=reminders#held">' . $h($x['subject']) . '</a><br><span style="color:#666">' . $h($x['sender']) . '</span>', $h($x['reason'])], $hl), ['Received', 'Email', 'Why held']));
@@ -755,7 +768,7 @@ function build_report(array $sweep, array $nightly, string $base, ?array $horizo
     $o .= $sec('Client reminders waiting for someone to click Send (' . count($pend) . '; ' . $nightly['sent'] . ' new tonight)', $table(array_map(fn($r) => ['<a href="' . $base . '?p=send&id=' . $r['event_id'] . '&rem=' . $r['id'] . '">' . $h($r['ref']) . '</a>', $h($r['type']), fmt_date($r['due_date']), lead_label((int)$r['lead']), $h($r['to_email'])], $pend), ['File', 'Event', 'Due', 'Reminder', 'To']) . ($nightly['held'] ? '<p style="color:#b54708">' . $nightly['held'] . ' reminder(s) held: template not approved or no client email.</p>' : ''));
     if ($horizon !== null) $o .= $sec('Weekly renewal horizon: ' . $horizon['registrations'] . ' live registrations checked, ' . $horizon['events'] . ' renewal event(s) added on ' . $horizon['marks'] . ' mark(s)', $horizon['events'] ? $table(array_merge(...array_map(fn($x) => array_map(fn($e) => [$link($x[0]), $h($e[0]), fmt_date($e[1])], $x[1]), $horizon['added'])), ['File', 'Event', 'Date']) : '<p style="color:#666">Every live registration already carries its Section 8/9 renewals at least ' . HORIZON_YEARS . ' years out.</p>');
     else $o .= $sec('Renewal horizon', '<p style="color:#666">Weekly pass (Mondays); last run ' . $h(setting('horizon_last', 'never')) . '. Every live registration carries its Section 8/9 renewals ' . HORIZON_YEARS . ' years out.</p>');
-    return $o . '<p style="color:#999;font-size:12px;margin-top:20px">Madder · ' . htmlspecialchars(firm('name')) . ' · generated ' . date('Y-m-d H:i') . '</p></div>';
+    return $o . '<p style="color:#999;font-size:12px;margin-top:20px">Pendant · ' . htmlspecialchars(firm('name')) . ' · generated ' . date('Y-m-d H:i') . '</p></div>';
 }
 
 /**

@@ -16,7 +16,7 @@ require_once __DIR__ . '/firm.php';
  *  - reg_fill()        {REG_BLOCK} {REG_MAINT} {REG_DATE} {LETTER_CLAUSE} for the 'Report Trademark Registration' email.
  *  - reg_sweep()       hourly: queue a missing report, ask oa_fetch for a certificate that is not in the folder, close a report the client
  *                      already got by hand (Gmail: a firm address to someone outside, about this mark, on or after the registration date).
- * Nothing is ever sent by Madder on its own: the to-do waits for someone to click Send on the preview.
+ * Nothing is ever sent by Pendant on its own: the to-do waits for someone to click Send on the preview.
  */
 const REG_REPORT = 'Report Trademark Registration';
 const REG_SINCE = '2026-06-16';   // 2026-10-04: "go back to june 16th, 2026"
@@ -55,7 +55,7 @@ function reg_attachables(array $m): array {
     return $out;
 }
 
-/** The registration date Madder holds for a matter (TSDR-verified at intake, or by the 2026-10-04 backfill). */
+/** The registration date Pendant holds for a matter (TSDR-verified at intake, or by the 2026-10-04 backfill). */
 function reg_date_of(array $m): string {
     $g = substr((string)($m['grant_date'] ?? ''), 0, 10); if ($g !== '') return $g;
     return (string)(q1("SELECT mail_date FROM correspondence WHERE matter_id=? AND doc_code='REGISTRATION' ORDER BY mail_date DESC LIMIT 1", [$m['id']])['mail_date'] ?? '');
@@ -107,7 +107,7 @@ function reg_card(array $r): string {
     $acts = '';
     if ($r['state'] === 'tosend') {
         $acts = '<a class="btn gold" href="' . h(url('send', ['id' => $todo['id'], 'back' => $back])) . '">Preview &amp; send</a> '
-              . btn('reg_reported', ['id' => $todo['id'], 'back' => $back], 'Already reported', 'small ghost', 'Mark the ' . $r['ref'] . ' registration report as already sent to the client (outside Madder)?');
+              . btn('reg_reported', ['id' => $todo['id'], 'back' => $back], 'Already reported', 'small ghost', 'Mark the ' . $r['ref'] . ' registration report as already sent to the client (outside Pendant)?');
     } elseif (in_array($r['state'], ['none', 'inactive'], true)) $acts = btn('reg_queue', ['matter_id' => $r['id'], 'back' => $back], 'Queue the client email', 'small');
     elseif ($r['state'] === 'sent') $acts = '<a class="btn small ghost" href="' . h(url('send', ['id' => $todo['id'], 'ob' => $r['sent']['id'], 'back' => $back])) . '">View email</a>';
     return '<article class="pub-card ' . $r['state'] . '">'
@@ -155,7 +155,7 @@ function reg_fill(array $ev, array $m): array {
 }
 
 /**
- * A report the client already got outside Madder: a firm address (firm own_domains / own_addresses) wrote to someone
+ * A report the client already got outside Pendant: a firm address (firm own_domains / own_addresses) wrote to someone
  * outside the firm on or after the registration date, about this mark (file number in the subject, or the serial / registration number),
  * in registration wording. Registration emails are often replies in an older thread (XYZ001: "Fwd: XYZ001: TM Reg. #... Issuance Letter").
  */
@@ -254,7 +254,7 @@ function reg_opening(string $reg, string $asOf = ''): string {
  */
 function tm_letter_address(array $m, array $cl): array {
     $ad = function_exists('client_letter_address') ? client_letter_address($m, [(string)$m['owner'], (string)($cl['name'] ?? '')]) : [];
-    if ($ad && preg_grep('/ADDRESS NEEDED/i', $ad['lines'] ?? [])) $ad = [];   // Madder's own placeholder letter is not an address
+    if ($ad && preg_grep('/ADDRESS NEEDED/i', $ad['lines'] ?? [])) $ad = [];   // Pendant's own placeholder letter is not an address
     if ($ad && !empty($ad['own'])) return $ad;
     $own = tm_tsdr_owner((string)$m['app_no']); if (!$own) return $ad;
     $tok = fn(string $s) => array_values(array_filter(array_map('strtolower', preg_split('/[^A-Za-z]+/', $s)), fn($t) => strlen($t) >= 4 && !in_array($t, ['corp', 'corporation', 'company', 'limited', 'group', 'supply', 'international', 'inc', 'llc'], true)));
@@ -302,7 +302,7 @@ function gmail_salutation(array $emails): string {
     return '';
 }
 /** Write REF-NNx-Issuance Letter (AI written - advice only until lawyer review).docx into the folder from the firm's template. '' = nothing done. */
-function reg_prepare_letter(array $m, bool $redo = false): string {   // $redo: replace Madder's own unaddressed letter (same name, Dropbox keeps the old version)
+function reg_prepare_letter(array $m, bool $redo = false): string {   // $redo: replace Pendant's own unaddressed letter (same name, Dropbox keeps the old version)
     $rf = reg_files($m); if (!$rf['dir'] || (!$redo && ($rf['letter'] !== '' || $rf['letter_doc'] !== ''))) return '';
     $reg = reg_date_of($m); $rn = preg_replace('/\D/', '', (string)$m['reg_no']); if ($reg === '' || $rn === '') return '';
     $title = clean_title((string)$m['title']); $sn = logo_serial($m); $madrid = reg_is_madrid($m);
@@ -318,7 +318,7 @@ function reg_prepare_letter(array $m, bool $redo = false): string {   // $redo: 
     usort($rows, fn($a, $b) => strcmp($b[2], $a[2]));
     $rows = array_merge([[$title ?: 'design mark', fmt_reg($rn), $reg, 0]], array_slice($rows, 0, 24));
     // 2026-10-04: active marks only; highlight a mark whose maintenance window is open, opens within 3 months, or is in its grace period
-    // (and is still open in Madder), with his 08-18 note (XYZ004 / XYZ009 wording) under the table.
+    // (and is still open in Pendant), with his 08-18 note (XYZ004 / XYZ009 wording) under the table.
     $port = []; $notes = ['open' => [], 'opens' => [], 'grace' => []];
     foreach ($rows as $i => [$mk, $rno, $rd, $mid]) {
         $open = reg_opening($rd); $due = add_months($open, 12, false); $grace = add_months($due, 6, false); $t = today(); $st = '';
@@ -342,8 +342,8 @@ function reg_prepare_letter(array $m, bool $redo = false): string {   // $redo: 
     file_put_contents("$tmp.json", json_encode($fields));
     $o = (string)shell_exec('python3 ' . escapeshellarg(dirname(__DIR__) . '/bin/tm_issuance_letter.py') . ' fill ' . escapeshellarg(dirname(__DIR__) . '/templates/tm-issuance-letter.docx') . ' ' . escapeshellarg("$tmp.docx") . ' ' . escapeshellarg("$tmp.json") . ' 2>&1');
     if (!is_file("$tmp.docx")) { @unlink("$tmp.json"); @unlink($img); return $m['ref'] . ': the issuance letter could not be generated (' . trim($o) . ')'; }
-    $prev = $redo && preg_match('/-Issuance Letter \(AI written - advice only until lawyer review\)\.docx$/', (string)$rf['letter_doc']) ? (string)$rf['letter_doc'] : '';   // only Madder's own letter is ever replaced
-    if ($redo && $prev === '' && ($rf['letter'] !== '' || $rf['letter_doc'] !== '')) { foreach (["$tmp.json", "$tmp.docx", $img] as $x) if ($x !== '') @unlink($x); return $m['ref'] . ': not replaced (the letter in the folder is not one Madder wrote)'; }
+    $prev = $redo && preg_match('/-Issuance Letter \(AI written - advice only until lawyer review\)\.docx$/', (string)$rf['letter_doc']) ? (string)$rf['letter_doc'] : '';   // only Pendant's own letter is ever replaced
+    if ($redo && $prev === '' && ($rf['letter'] !== '' || $rf['letter_doc'] !== '')) { foreach (["$tmp.json", "$tmp.docx", $img] as $x) if ($x !== '') @unlink($x); return $m['ref'] . ': not replaced (the letter in the folder is not one Pendant wrote)'; }
     $code = tm_next_code(mf_list($rf['dir']), (string)$m['ref'], 'issuance', $reg);
     $name = mf_write($rf['dir'], $prev !== '' ? $prev : $m['ref'] . '-' . $code . '-Issuance Letter (AI written - advice only until lawyer review).docx', (string)file_get_contents("$tmp.docx"), $prev !== '');
     foreach (["$tmp.json", "$tmp.docx", $img] as $x) if ($x !== '') @unlink($x);

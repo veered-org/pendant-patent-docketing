@@ -58,7 +58,7 @@ function pull_uspto_mail(int $days = 7, bool $apply = true): array {
                     if (in_array($it['doc_code'], ['FILING RECEIPT', 'MAINT FEE PAID', 'ASSIGNMENT RECORDED', 'ASSIGNMENT FILED'], true)) {
                         $out['receipts']++;
                         if ($it['date'] < setting('receipt_reports_from', '2026-10-02')) $it['no_report'] = true;   // the first look-back: file and propose, but no client emails for old receipts
-                        if (!find_matter($it)) { $out['held']++; if ($apply) hold_message($msg, $bodyText, (str_starts_with($it['doc_code'], 'ASSIGNMENT') ? 'An assignment notice' : 'A filing receipt') . ' for ' . ($it['docket'] ?: $it['app_no']) . ', which matches no record in Madder', true); $lines[] = 'held: receipt with no matching record'; continue; }
+                        if (!find_matter($it)) { $out['held']++; if ($apply) hold_message($msg, $bodyText, (str_starts_with($it['doc_code'], 'ASSIGNMENT') ? 'An assignment notice' : 'A filing receipt') . ' for ' . ($it['docket'] ?: $it['app_no']) . ', which matches no record in Pendant', true); $lines[] = 'held: receipt with no matching record'; continue; }
                     }
                     $it = enrich_item($it, $msg, $c); $r = apply_item($it, $apply, 'gmail'); $out['items']++;
                     $lines[] = ($r['matter']['ref'] ?? $it['docket'] ?: $it['app_no']) . ' ' . $it['doc_code'] . ' ' . $it['date'] . ': +' . count($r['creates']) . ' events, ' . count($r['closes']) . ' proposed closed' . ($r['notes'] ? ' (' . implode('; ', $r['notes']) . ')' : ''); $out['results'][] = $r;

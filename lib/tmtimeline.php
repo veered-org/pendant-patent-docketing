@@ -50,7 +50,7 @@ function tm_pendency_refresh(int $maxAgeDays = 28): string {
     return sprintf('USPTO trademark pendency refreshed (%s): first action %.2f months, total %.1f months, Statement of Use %d days', $new['quarter'], $new['first_action'], $new['total'], $new['sou_days']);
 }
 
-/** TSDR record for a matter, once per request ([] when unavailable: the card then falls back to what Madder holds). */
+/** TSDR record for a matter, once per request ([] when unavailable: the card then falls back to what Pendant holds). */
 function tm_tsdr(array $m): array {
     static $cache = [];
     $sn = preg_replace('/\D/', '', (string)($m['app_no'] ?? ''));

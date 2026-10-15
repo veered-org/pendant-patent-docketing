@@ -32,7 +32,7 @@ function parse_uspto_mail(string $subject, string $body, ?string $received = nul
         }
         return $items;
     }
-    // New trademark application (2026-10-02: "Madder should create a matter when a trademark is filed"): the TEAS / Trademark
+    // New trademark application (2026-10-02: "Pendant should create a matter when a trademark is filed"): the TEAS / Trademark
     // Center filing receipt "The USPTO has received your trademark application (serial number 50139751)" carries the serial, mark,
     // owner, filing date and our docket number. Nothing is docketed; the matter is created (or completed) so later notices land on it.
     if (preg_match('/has received your trademark application \(serial number (\d{8})\)/i', $subject, $sm)) {
